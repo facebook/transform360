@@ -900,10 +900,10 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 #define FLAGS AV_OPT_FLAG_VIDEO_PARAM|AV_OPT_FLAG_FILTERING_PARAM
 
 static const AVOption transform_options[] = {
-    { "w",             "Output video width",          OFFSET(w_expr),    AV_OPT_TYPE_STRING,        .flags = FLAGS },
-    { "width",         "Output video width",          OFFSET(w_expr),    AV_OPT_TYPE_STRING,        .flags = FLAGS },
-    { "h",             "Output video height",         OFFSET(h_expr),    AV_OPT_TYPE_STRING,        .flags = FLAGS },
-    { "height",        "Output video height",         OFFSET(h_expr),    AV_OPT_TYPE_STRING,        .flags = FLAGS },
+    { "w",             "Output video width",          OFFSET(w_expr),    AV_OPT_TYPE_STRING, {.str = "0"}, CHAR_MIN, CHAR_MAX, FLAGS },
+    { "width",         "Output video width",          OFFSET(w_expr),    AV_OPT_TYPE_STRING, {.str = "0"}, CHAR_MIN, CHAR_MAX, FLAGS },
+    { "h",             "Output video height",         OFFSET(h_expr),    AV_OPT_TYPE_STRING, {.str = "0"}, CHAR_MIN, CHAR_MAX, FLAGS },
+    { "height",        "Output video height",         OFFSET(h_expr),    AV_OPT_TYPE_STRING, {.str = "0"}, CHAR_MIN, CHAR_MAX, FLAGS },
     { "size",          "set video size",              OFFSET(size_str), AV_OPT_TYPE_STRING, {.str = NULL}, 0, FLAGS },
     { "s",             "set video size",              OFFSET(size_str), AV_OPT_TYPE_STRING, {.str = NULL}, 0, FLAGS },
     { "cube_edge_length", "Length of a cube edge (for cubic transform, overrides w and h, default 0 for off)",         OFFSET(cube_edge_length),    AV_OPT_TYPE_INT,  {.i64 = 0}, 0, 16384,  .flags = FLAGS },
