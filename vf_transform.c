@@ -150,6 +150,24 @@ typedef struct ThreadData {
     uint8_t* out_data;
 } ThreadData;
 
+static int query_formats(AVFilterContext *ctx)
+{
+    static const enum AVPixelFormat pix_fmts[] = {
+    AV_PIX_FMT_GBRP,
+    AV_PIX_FMT_YUV410P,
+    AV_PIX_FMT_YUV411P,
+    AV_PIX_FMT_YUV420P,
+    AV_PIX_FMT_YUV422P,
+    AV_PIX_FMT_YUV440P,
+    AV_PIX_FMT_YUV444P,
+    AV_PIX_FMT_NONE
+    };
+    AVFilterFormats *fmts_list = ff_make_format_list(pix_fmts);
+    if (!fmts_list)
+        return AVERROR(ENOMEM);
+    return ff_set_common_formats(ctx, fmts_list);
+}
+
 // We need to end up with X and Y coordinates in the range [0..1).
 // Horizontally wrapping is easy: 1.25 becomes 0.25, -0.25 becomes 0.75.
 // Vertically, if we pass through the north pole, we start coming back 'down'
@@ -900,10 +918,10 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 #define FLAGS AV_OPT_FLAG_VIDEO_PARAM|AV_OPT_FLAG_FILTERING_PARAM
 
 static const AVOption transform_options[] = {
-    { "w",             "Output video width",          OFFSET(w_expr),    AV_OPT_TYPE_STRING,        .flags = FLAGS },
-    { "width",         "Output video width",          OFFSET(w_expr),    AV_OPT_TYPE_STRING,        .flags = FLAGS },
-    { "h",             "Output video height",         OFFSET(h_expr),    AV_OPT_TYPE_STRING,        .flags = FLAGS },
-    { "height",        "Output video height",         OFFSET(h_expr),    AV_OPT_TYPE_STRING,        .flags = FLAGS },
+    { "w",             "Output video width",          OFFSET(w_expr),    AV_OPT_TYPE_STRING, {.str = "0"}, CHAR_MIN, CHAR_MAX, FLAGS },
+    { "width",         "Output video width",          OFFSET(w_expr),    AV_OPT_TYPE_STRING, {.str = "0"}, CHAR_MIN, CHAR_MAX, FLAGS },
+    { "h",             "Output video height",         OFFSET(h_expr),    AV_OPT_TYPE_STRING, {.str = "0"}, CHAR_MIN, CHAR_MAX, FLAGS },
+    { "height",        "Output video height",         OFFSET(h_expr),    AV_OPT_TYPE_STRING, {.str = "0"}, CHAR_MIN, CHAR_MAX, FLAGS },
     { "size",          "set video size",              OFFSET(size_str), AV_OPT_TYPE_STRING, {.str = NULL}, 0, FLAGS },
     { "s",             "set video size",              OFFSET(size_str), AV_OPT_TYPE_STRING, {.str = NULL}, 0, FLAGS },
     { "cube_edge_length", "Length of a cube edge (for cubic transform, overrides w and h, default 0 for off)",         OFFSET(cube_edge_length),    AV_OPT_TYPE_INT,  {.i64 = 0}, 0, 16384,  .flags = FLAGS },
@@ -977,12 +995,13 @@ static const AVFilterPad avfilter_vf_transform_outputs[] = {
 };
 
 AVFilter ff_vf_transform = {
-    .name        = "transform",
-    .description = NULL_IF_CONFIG_SMALL("Transforms equirectangular input video to the other format."),
-    .init_dict   = init_dict,
-    .uninit      = uninit,
-    .priv_size   = sizeof(TransformContext),
-    .priv_class  = &transform_class,
-    .inputs      = avfilter_vf_transform_inputs,
-    .outputs     = avfilter_vf_transform_outputs,
+    .name           = "transform",
+    .description    = NULL_IF_CONFIG_SMALL("Transforms equirectangular input video to the other format."),
+    .init_dict      = init_dict,
+    .uninit         = uninit,
+    .priv_size      = sizeof(TransformContext),
+    .priv_class     = &transform_class,
+    .query_formats  = query_formats,
+    .inputs         = avfilter_vf_transform_inputs,
+    .outputs        = avfilter_vf_transform_outputs,
 };
