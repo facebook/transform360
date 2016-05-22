@@ -15,4 +15,4 @@ Transform is implemented as an ffmpeg video filter. To build Transform, follow t
 ## Running
 
 Check out the options for the filter by running `ffmpeg -h filter=transform`
-A typical execution would be something like `ffmpeg -i input.mp4 -vf transform=input_stereo_format=MONO:w_subdivisons=4:h_subdivisons=4:max_cube_edge_length=512`
+A typical execution would be something like `ffmpeg -i input.mp4 -vf transform='input_stereo_format=MONO:w_subdivisons=4:h_subdivisons=4:max_cube_edge_length=512' output.mp4
