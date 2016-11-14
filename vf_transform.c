@@ -131,7 +131,7 @@ typedef struct TransformContext {
     int input_stereo_format;
     int vflip;
     int planes;
-    int w_subdivisons, h_subdivisons;
+    int w_subdivisions, h_subdivisions;
     float main_plane_ratio;
     float expand_coef;
     float fixed_yaw;    ///< Yaw (asimuth) angle, degrees
@@ -547,10 +547,10 @@ static inline int generate_map(TransformContext *s,
                 float out_x, out_y;
                 TransformPixelWeights *ws = &p->weights[id];
                 ws->n = 0;
-                for (int suby = 0; suby < s->h_subdivisons; ++suby) {
-                    for (int subx = 0; subx < s->w_subdivisons; ++subx) {
-                        float y = (i + (suby + 0.5f) / s->h_subdivisons) / out_h;
-                        float x = (j + (subx + 0.5f) / s->w_subdivisons) / out_w;
+                for (int suby = 0; suby < s->h_subdivisions; ++suby) {
+                    for (int subx = 0; subx < s->w_subdivisions; ++subx) {
+                        float y = (i + (suby + 0.5f) / s->h_subdivisions) / out_h;
+                        float x = (j + (subx + 0.5f) / s->w_subdivisions) / out_w;
                         int in_x, in_y;
                         uint32_t in_id;
                         int result;
@@ -879,7 +879,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     }
     av_frame_copy_props(out, in);
     av_log(ctx, AV_LOG_VERBOSE, "Copied props \n");
-    subs = s->w_subdivisons * s->h_subdivisons;
+    subs = s->w_subdivisions * s->h_subdivisions;
 
     for (int plane = 0; plane < s->planes; ++plane) {
         uint8_t *in_data, *out_data;
@@ -959,8 +959,8 @@ static const AVOption transform_options[] = {
     { "true",   NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1 }, 0, 0, FLAGS, "vflip" },
     { "main_plane_ratio", "Output video main plain ratio for PLANE_POLES format (0.88888)",         OFFSET(main_plane_ratio),    AV_OPT_TYPE_FLOAT,  {.dbl=MAIN_PLANE_WIDTH}, 0, 1,  .flags = FLAGS },
     { "expand_coef", "Expansion coeffiecient for each face in cubemap (default 1.01)",         OFFSET(expand_coef),    AV_OPT_TYPE_FLOAT,  {.dbl=1.01f}, 0, 10,  .flags = FLAGS },
-    { "w_subdivisons", "Number of horizontal per-pixel subdivisions for better downsampling (default 8)",         OFFSET(w_subdivisons),    AV_OPT_TYPE_INT,  {.i64 = 8}, 1, 8,  .flags = FLAGS },
-    { "h_subdivisons", "Number of vertical per-pixel subdivisions for better downsampling (default 8)",         OFFSET(h_subdivisons),    AV_OPT_TYPE_INT,  {.i64 = 8}, 1, 8,  .flags = FLAGS },
+    { "w_subdivisions", "Number of horizontal per-pixel subdivisions for better downsampling (default 8)",         OFFSET(w_subdivisions),    AV_OPT_TYPE_INT,  {.i64 = 8}, 1, 8,  .flags = FLAGS },
+    { "h_subdivisions", "Number of vertical per-pixel subdivisions for better downsampling (default 8)",         OFFSET(h_subdivisions),    AV_OPT_TYPE_INT,  {.i64 = 8}, 1, 8,  .flags = FLAGS },
     { "yaw", "View orientation for flat_fixed projection, degrees",   OFFSET(fixed_yaw),          AV_OPT_TYPE_FLOAT,   {.dbl =   0.0}, -360, 360,  .flags = FLAGS },
     { "pitch", "View orientation for flat_fixed projection, degrees", OFFSET(fixed_pitch),        AV_OPT_TYPE_FLOAT,   {.dbl =   0.0},  -90,  90,  .flags = FLAGS },
     { "hfov", "Horizontal field of view for flat_fixed projection, degrees (default 120)",  OFFSET(fixed_hfov), AV_OPT_TYPE_FLOAT,   {.dbl = 120.0}, -360, 360,  .flags = FLAGS },
