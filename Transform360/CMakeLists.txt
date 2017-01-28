@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 2.8)
+
+project (libtransform360)
+set(CMAKE_BUILD_TYPE Release)
+set (SOURCE_DIR "${PROJECT_SOURCE_DIR}/Library/")
+SET(SOURCES ${SOURCE_DIR}/VideoFrameTransform.cpp ${SOURCE_DIR}/VideoFrameTransformHandler.cpp)
+SET(HEADERS ${SOURCE_DIR}VideoFrameTransform.h ${SOURCE_DIR}VideoFrameTransformHandler.h ${SOURCE_DIR}VideoFrameTransformHelper.h)
+list(APPEND CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+add_library(Transform360 STATIC ${SOURCES} ${HEADERS})
+target_link_libraries(Transform360 ${PROJECT_LINK_LIBS} )
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+target_link_libraries(Transform360 ${OpenCV_LIBS})
+
+install(TARGETS Transform360 ARCHIVE DESTINATION lib LIBRARY DESTINATION lib COMPONENT library )
+install(DIRECTORY . DESTINATION include/Transform360 FILES_MATCHING PATTERN "*.h")
