@@ -26,38 +26,7 @@ Transform360 is implemented in C++ and is invoked by an ffmpeg video filter. To 
 
 #### More details about building Transform360 using CMake
 
-1. CMakeLists.txt:
-cmake_minimum_required(VERSION 2.8)
-
-project (libtransform360)
-set(CMAKE_BUILD_TYPE Release)
-
-set (SOURCE_DIR "${PROJECT_SOURCE_DIR}/")
-
-SET(SOURCES
-${SOURCE_DIR}/VideoFrameTransform.cpp
-${SOURCE_DIR}/VideoFrameTransformHandler.cpp)
-
-SET(HEADERS
-${SOURCE_DIR}VideoFrameTransform.h
-${SOURCE_DIR}VideoFrameTransformHandler.h
-${SOURCE_DIR}VideoFrameTransformHelper.h)
-
-list(APPEND CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
-
-add_library(Transform360 STATIC ${SOURCES} ${HEADERS})
-target_link_libraries(Transform360 ${PROJECT_LINK_LIBS} )
-
-find_package(OpenCV REQUIRED)
-include_directories(${OpenCV_INCLUDE_DIRS})
-target_link_libraries(Transform360 ${OpenCV_LIBS})
-
-install(TARGETS Transform360
-ARCHIVE DESTINATION lib
-LIBRARY DESTINATION lib
-COMPONENT library
-)
-install(DIRECTORY . DESTINATION include/Transform360 FILES_MATCHING PATTERN "*.h")
+1. Build with cmake.
 
 2. Configuration for ffmpeg
 ./configure --prefix=/usr/local --enable-gpl --enable-nonfree --enable-libass --enable-libfdk-aac --enable-libfreetype --enable-libmp3lame --enable-libopus --enable-libtheora --enable-libvorbis --enable-libvpx --enable-libx264 --enable-libxvid --enable-libopencv --extra-libs='-lTransform360 -lstdc++'
