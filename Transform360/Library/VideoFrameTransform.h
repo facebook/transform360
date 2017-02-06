@@ -50,8 +50,9 @@ class VideoFrameTransform
       int outputHeight,
       int transformMatPlaneIndex);
 
-    cv::Mat transformPlane(
+    bool transformPlane(
       const cv::Mat& inputMat,
+      cv::Mat& outputMat,
       int outputWidth,
       int outputHeight,
       int transformMatPlaneIndex,
@@ -61,8 +62,9 @@ class VideoFrameTransform
     bool transformFramePlane(
       uint8_t* inputData,
       uint8_t* outputData,
-      int inputWidthWithPadding,
+      int inputWidth,
       int inputHeight,
+      int inputWidthWithPadding,
       int outputWidth,
       int outputHeight,
       int outputWidthWithPadding,

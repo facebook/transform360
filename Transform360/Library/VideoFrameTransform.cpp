@@ -80,27 +80,6 @@ static float intersectSphereOffset(
   return root - loc;
 }
 
-// The following two functions are mainly for converting data for the
-// interface between C and C++. Usually C has data stored in array.
-static void copyDataFromMatToArray(
-  Mat& inputMat,
-  uint8_t* outputArray,
-  int widthWithPadding) {
-  uint8_t *p = outputArray;
-  for(int i = 0; i < inputMat.rows; i++) {
-    memcpy(p, inputMat.ptr(i), inputMat.cols * sizeof(uint8_t));
-    p += widthWithPadding;
-  }
-}
-
-static Mat copyDataFromArrayToMat(
-  uint8_t* inputArray,
-  int widthWithPadding,
-  int height) {
-  Mat outputMat(height, widthWithPadding, CV_8U, inputArray, Mat::AUTO_STEP);
-  return outputMat;
-}
-
 // Calculate 1D kernel
 static Mat calculateKernel(float sigma) {
   // kernel box length is 2x the sigma
@@ -696,13 +675,14 @@ Mat VideoFrameTransform::filterPlane(
 }
 
 // Find mapping between the input and output pixel coordinates
-Mat VideoFrameTransform::transformPlane(
+bool VideoFrameTransform::transformPlane(
   const Mat& inputMat,
+  Mat& outputMat,
   int outputWidth,
   int outputHeight,
   int transformMatPlaneIndex,
   int imagePlaneIndex) {
-  Mat scaledWarpedImage, warpedImage;
+  Mat scaledWarpedImage;
   try {
     switch (ctx_.interpolation_alg) {
       case NEAREST:
@@ -721,30 +701,34 @@ Mat VideoFrameTransform::transformPlane(
             tempMat = inputMat;
           }
 
-          remap(
-            tempMat,
-            scaledWarpedImage,
-            warpMats_[transformMatPlaneIndex],
-            cv::Mat(),
-            ctx_.interpolation_alg,
-            BORDER_WRAP);
+          bool needResize = !ctx_.enable_low_pass_filter &&
+            (tempMat.cols != outputWidth ||
+            tempMat.rows != outputHeight);
 
-          if (!ctx_.enable_low_pass_filter &&
-            (scaledWarpedImage.cols != outputWidth ||
-            scaledWarpedImage.rows != outputHeight)) {
+          if (!needResize) {
+            remap(
+              tempMat,
+              outputMat,
+              warpMats_[transformMatPlaneIndex],
+              cv::Mat(),
+              ctx_.interpolation_alg,
+              BORDER_WRAP);
+          } else {
+            remap(
+              tempMat,
+              scaledWarpedImage,
+              warpMats_[transformMatPlaneIndex],
+              cv::Mat(),
+              ctx_.interpolation_alg,
+              BORDER_WRAP);
             resize(
               scaledWarpedImage,
-              warpedImage,
-              Size(
-                outputWidth,
-                outputHeight),
-              1.0 * scaledWarpedImage.cols / outputWidth,
-              1.0 * scaledWarpedImage.rows / outputHeight,
+              outputMat,
+              outputMat.size(),
+              0,
+              0,
               INTER_AREA);
-          } else {
-            warpedImage = scaledWarpedImage;
           }
-
           break;
         }
       default:
@@ -757,9 +741,10 @@ Mat VideoFrameTransform::transformPlane(
       "Could not transform the plane %d. Error: %s\n",
       imagePlaneIndex,
       ex.what());
+      return false;
   }
 
-  return warpedImage;
+  return true;
 }
 
 bool VideoFrameTransform::transformPos(
@@ -981,34 +966,36 @@ bool VideoFrameTransform::transformPos(
 bool VideoFrameTransform::transformFramePlane(
   uint8_t* inputArray,
   uint8_t* outputArray,
-  int inputWidthWithPadding,
+  int inputWidth,
   int inputHeight,
+  int inputWidthWithPadding,
   int outputWidth,
   int outputHeight,
   int outputWidthWithPadding,
   int transformMatPlaneIndex,
   int imagePlaneIndex) {
   try {
-    Mat inputMat = copyDataFromArrayToMat(
+    Mat inputMat(
+      inputHeight,
+      inputWidth,
+      CV_8U,
       inputArray,
-      inputWidthWithPadding,
-      inputHeight);
+      inputWidthWithPadding);
 
-    Mat transformedMat = transformPlane(
+    Mat outputMat(
+      outputHeight,
+      outputWidth,
+      CV_8U,
+      outputArray,
+      outputWidthWithPadding);
+
+    return transformPlane(
       inputMat,
+      outputMat,
       outputWidth,
       outputHeight,
       transformMatPlaneIndex,
       imagePlaneIndex);
-
-    if (transformedMat.empty()) {
-      return false;
-    } else {
-      copyDataFromMatToArray(
-        transformedMat,
-        outputArray,
-        outputWidthWithPadding);
-    }
   } catch (const exception& ex) {
     printf(
       "Could not transform the plane %d. Error: %s\n",
@@ -1016,6 +1003,4 @@ bool VideoFrameTransform::transformFramePlane(
       ex.what());
     return false;
   }
-
-  return true;
 }
