@@ -30,6 +30,7 @@ typedef enum Layout {
 #ifdef FACEBOOK_LAYOUT
   LAYOUT_FB,
 #endif
+  LAYOUT_EQUIRECT,
   LAYOUT_N
 } Layout;
 

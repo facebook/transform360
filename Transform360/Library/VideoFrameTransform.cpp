@@ -414,6 +414,12 @@ void VideoFrameTransform::calcualteFilteringConfig(
       calculateFov(ctx_.fixed_hfov, ctx_.fixed_vfov, hFov, vFov);
       break;
 #endif
+    case LAYOUT_EQUIRECT:
+      {
+        hFov = 360.0;
+        vFov = 180.0;
+        break;
+      }
     case LAYOUT_N:
       {
         printf(
@@ -816,6 +822,8 @@ bool VideoFrameTransform::transformPos(
       case LAYOUT_FB:
         break;
 #endif
+      case LAYOUT_EQUIRECT:
+        break;
       case LAYOUT_N:
         {
           printf(
@@ -827,37 +835,48 @@ bool VideoFrameTransform::transformPos(
     switch (ctx_.output_layout) {
       case LAYOUT_CUBEMAP_32:
       case LAYOUT_CUBEMAP_23_OFFCENTER:
+      case LAYOUT_EQUIRECT:
       {
-        assert(x >= 0 && x <= 1);
-        assert(y >= 0 && y <= 1);
-        assert(face >= 0 && face < 6);
-        x = (x - 0.5f) * ctx_.expand_coef + 0.5f;
-        y = (y - 0.5f) * ctx_.expand_coef + 0.5f;
-
-        TransformFaceType enumFace = static_cast<TransformFaceType>(face);
-        if (ctx_.output_layout == LAYOUT_CUBEMAP_23_OFFCENTER) {
-          switch (enumFace) {
-            case RIGHT:  p = P4; vx = PY; vy = NZ; break;
-            case LEFT:   p = P3; vx = NX; vy = PZ; break;
-            case TOP:    p = P5; vx = PY; vy = NX; break;
-            case BOTTOM: p = P1; vx = NX; vy = PY; break;
-            case FRONT:  p = P1; vx = PY; vy = PZ; break;
-            case BACK:   p = P5; vx = NX; vy = NZ; break;
-          }
+        if (ctx_.output_layout == LAYOUT_EQUIRECT) {
+          float sin_yaw = sin((2.0f * x - 1.0f) * M_PI);
+          float sin_pitch = sin((y - 0.5f) * M_PI);
+          float cos_yaw = cos((2.0f * x - 1.0f) * M_PI);
+          float cos_pitch = cos((y - 0.5f) * M_PI);
+          qx = sin_yaw * cos_pitch;
+          qy = sin_pitch;
+          qz = cos_yaw * cos_pitch;
         } else {
-          switch (enumFace) {
-            case RIGHT:   p = P5; vx = NZ; vy = PY; break;
-            case LEFT:    p = P0; vx = PZ; vy = PY; break;
-            case TOP:     p = P6; vx = PX; vy = NZ; break;
-            case BOTTOM:  p = P0; vx = PX; vy = PZ; break;
-            case FRONT:   p = P4; vx = PX; vy = PY; break;
-            case BACK:    p = P1; vx = NX; vy = PY; break;
-          }
-        }
+          assert(x >= 0 && x <= 1);
+          assert(y >= 0 && y <= 1);
+          assert(face >= 0 && face < 6);
+          x = (x - 0.5f) * ctx_.expand_coef + 0.5f;
+          y = (y - 0.5f) * ctx_.expand_coef + 0.5f;
 
-        qx = p [0] + vx [0] * x + vy [0] * y;
-        qy = p [1] + vx [1] * x + vy [1] * y;
-        qz = p [2] + vx [2] * x + vy [2] * y;
+          TransformFaceType enumFace = static_cast<TransformFaceType>(face);
+          if (ctx_.output_layout == LAYOUT_CUBEMAP_23_OFFCENTER) {
+            switch (enumFace) {
+              case RIGHT:  p = P4; vx = PY; vy = NZ; break;
+              case LEFT:   p = P3; vx = NX; vy = PZ; break;
+              case TOP:    p = P5; vx = PY; vy = NX; break;
+              case BOTTOM: p = P1; vx = NX; vy = PY; break;
+              case FRONT:  p = P1; vx = PY; vy = PZ; break;
+              case BACK:   p = P5; vx = NX; vy = NZ; break;
+            }
+          } else {
+            switch (enumFace) {
+              case RIGHT:   p = P5; vx = NZ; vy = PY; break;
+              case LEFT:    p = P0; vx = PZ; vy = PY; break;
+              case TOP:     p = P6; vx = PX; vy = NZ; break;
+              case BOTTOM:  p = P0; vx = PX; vy = PZ; break;
+              case FRONT:   p = P4; vx = PX; vy = PY; break;
+              case BACK:    p = P1; vx = NX; vy = PY; break;
+            }
+          }
+
+          qx = p [0] + vx [0] * x + vy [0] * y;
+          qy = p [1] + vx [1] * x + vy [1] * y;
+          qz = p [2] + vx [2] * x + vy [2] * y;
+        }
 
         if (std::abs(ctx_.fixed_cube_offcenter_x) > kEpsilon ||
           std::abs(ctx_.fixed_cube_offcenter_y) > kEpsilon ||
