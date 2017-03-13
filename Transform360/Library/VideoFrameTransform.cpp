@@ -269,14 +269,33 @@ void VideoFrameTransform::generateKernelAndFilteringConfig(
         - 0.5 * inputWidth) / inputWidth;
       float avgPitch = 0.5 * M_PI * (inputHeight - top - bottom) / inputHeight;
 
+      float yaw = ctx_.fixed_yaw * M_PI / 180.0f;
+      float pitch = ctx_.fixed_pitch * M_PI / 180.0f;
+      float offset = std::abs(ctx_.fixed_cube_offcenter_z);
+
+      // Check if yaw and pitch are both 0 and we should use reverse direction
+      // of the offset instead.
+      if (std::abs(yaw) < kEpsilon && std::abs(pitch) < kEpsilon && (
+          std::abs(ctx_.fixed_cube_offcenter_x) > kEpsilon ||
+          std::abs(ctx_.fixed_cube_offcenter_y) > kEpsilon ||
+          ctx_.fixed_cube_offcenter_z > kEpsilon)) {  // check Z > 0 explicitly
+        offset = sqrtf(
+            ctx_.fixed_cube_offcenter_x * ctx_.fixed_cube_offcenter_x +
+            ctx_.fixed_cube_offcenter_y * ctx_.fixed_cube_offcenter_y +
+            ctx_.fixed_cube_offcenter_z * ctx_.fixed_cube_offcenter_z);
+        yaw = atan2f(
+            -ctx_.fixed_cube_offcenter_x / offset,
+            -ctx_.fixed_cube_offcenter_z / offset);
+        pitch = asinf(-ctx_.fixed_cube_offcenter_y / offset);
+      }
+
       double dist = angularDistance(
-        ctx_.fixed_yaw,
-        ctx_.fixed_pitch,
+        yaw,
+        pitch,
         avgYaw,
         avgPitch);
 
-      double effectiveRatio =
-        getEffectiveRatio(dist, std::abs(ctx_.fixed_cube_offcenter_z));
+      double effectiveRatio = getEffectiveRatio(dist, offset);
       double kernelScalingFactor =
         ctx_.kernel_adjust_factor * baseEffectiveRatio / effectiveRatio;
       Mat adjustedKernelX = calculateKernel(kernelScalingFactor * sigmaX);
