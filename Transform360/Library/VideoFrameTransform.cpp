@@ -958,13 +958,27 @@ bool VideoFrameTransform::transformPos(
           qx = qx / d;
           qy = qy / d;
           qz = qz / d;
-          dist = intersectSphereOffset(
-            qx, qy, qz, ctx_.fixed_cube_offcenter_x,
-            ctx_.fixed_cube_offcenter_y, ctx_.fixed_cube_offcenter_z);
-          if (dist > 0.0f) {
-            qx = qx * dist - ctx_.fixed_cube_offcenter_x;
-            qy = qy * dist - ctx_.fixed_cube_offcenter_y;
-            qz = qz * dist - ctx_.fixed_cube_offcenter_z;
+          if (ctx_.is_horizontal_offset) {
+            d = sqrtf(qx * qx + qz * qz);
+            qx = qx / d;
+            qy = qy / d;
+            qz = qz / d;
+            dist = intersectSphereOffset(
+              qx, 0, qz,
+              ctx_.fixed_cube_offcenter_x, 0, ctx_.fixed_cube_offcenter_z);
+            if (dist > 0.0f) {
+              qx = qx * dist - ctx_.fixed_cube_offcenter_x;
+              qz = qz * dist - ctx_.fixed_cube_offcenter_z;
+            }
+          } else {
+            dist = intersectSphereOffset(
+              qx, qy, qz, ctx_.fixed_cube_offcenter_x,
+              ctx_.fixed_cube_offcenter_y, ctx_.fixed_cube_offcenter_z);
+            if (dist > 0.0f) {
+              qx = qx * dist - ctx_.fixed_cube_offcenter_x;
+              qy = qy * dist - ctx_.fixed_cube_offcenter_y;
+              qz = qz * dist - ctx_.fixed_cube_offcenter_z;
+            }
           }
         }
 

@@ -67,6 +67,7 @@ typedef struct FrameTransformContext {
   float fixed_cube_offcenter_x; /// offcenter projection x
   float fixed_cube_offcenter_y; /// offcenter projection y
   float fixed_cube_offcenter_z; /// offcenter projection z
+  int is_horizontal_offset;  /// Whether horizontal plane offset is enabled
   int enable_low_pass_filter;
   float kernel_height_scale_factor; /// Factor to scale the calculated kernel
                                     /// height for low pass filtering
