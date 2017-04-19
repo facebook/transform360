@@ -77,8 +77,8 @@ class VideoFrameTransform
       float y,
       float* outX,
       float* outY,
-      int transformMatPlaneIndex);
-
+      int transformMatPlaneIndex,
+      float inputPixelWidth);
 
     cv::Mat filterPlane(
       const cv::Mat& inputMat,

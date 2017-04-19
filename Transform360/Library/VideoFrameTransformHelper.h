@@ -31,6 +31,7 @@ typedef enum Layout {
   LAYOUT_FB,
 #endif
   LAYOUT_EQUIRECT,
+  LAYOUT_BARREL,
   LAYOUT_N
 } Layout;
 

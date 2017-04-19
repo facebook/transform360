@@ -439,6 +439,12 @@ void VideoFrameTransform::calcualteFilteringConfig(
         vFov = 180.0;
         break;
       }
+    case LAYOUT_BARREL:
+      {
+        hFov = 450.0;
+        vFov = 180.0;
+        break;
+      }
     case LAYOUT_N:
       {
         printf(
@@ -528,15 +534,21 @@ bool VideoFrameTransform::generateMapForPlane(
     int scaledOutputHeight = ctx_.enable_low_pass_filter ? outputHeight :
       min(ctx_.height_scale_factor * outputHeight + 0.5, 1.0 * inputHeight);
 
+    float inputPixelWidth = 1.0f / inputWidth;
+    if (ctx_.input_stereo_format == STEREO_FORMAT_LR) {
+      inputPixelWidth *= 2;
+    }
+
     Mat warpMat = Mat(scaledOutputHeight, scaledOutputWidth, CV_32FC2);
     for (int i = 0; i < scaledOutputHeight; ++i) {
       for (int j = 0; j < scaledOutputWidth; ++j) {
         float outX, outY;
         float y = (i + 0.5f) / scaledOutputHeight;
         float x = (j + 0.5f) / scaledOutputWidth;
-        if (transformPos(x, y, &outX, &outY, transformMatPlaneIndex)) {
+        if (transformPos(
+            x, y, &outX, &outY, transformMatPlaneIndex, inputPixelWidth)) {
           warpMat.at<Point2f>(i, j) =
-            Point2f(outX * inputWidth - 0.5f, outY * inputHeight - 0.5f);
+            Point2f(outX * inputWidth, outY * inputHeight);
         } else {
           printf(
             "Failed to find the mapping coordinate for point (%d, %d)\n",
@@ -708,6 +720,16 @@ bool VideoFrameTransform::transformPlane(
   int transformMatPlaneIndex,
   int imagePlaneIndex) {
   Mat scaledWarpedImage;
+  // For Barrel layout we want to have some black spots on the video frame,
+  // so we need to change border mode to transparent, to avoid overwriting them.
+  int borderMode = (ctx_.output_layout == LAYOUT_BARREL) ?
+      BORDER_TRANSPARENT :
+      BORDER_WRAP;
+  // We want to set default YUV values to 0.
+  // UV (plane index > 0) planes are scaled from [-1, 1], so we set it to 128.
+  if (transformMatPlaneIndex && ctx_.output_layout == LAYOUT_BARREL) {
+    outputMat.setTo(Scalar(128));
+  }
   try {
     switch (ctx_.interpolation_alg) {
       case NEAREST:
@@ -737,7 +759,7 @@ bool VideoFrameTransform::transformPlane(
               warpMats_[transformMatPlaneIndex],
               cv::Mat(),
               ctx_.interpolation_alg,
-              BORDER_WRAP);
+              borderMode);
           } else {
             remap(
               tempMat,
@@ -745,7 +767,7 @@ bool VideoFrameTransform::transformPlane(
               warpMats_[transformMatPlaneIndex],
               cv::Mat(),
               ctx_.interpolation_alg,
-              BORDER_WRAP);
+              borderMode);
             resize(
               scaledWarpedImage,
               outputMat,
@@ -773,11 +795,12 @@ bool VideoFrameTransform::transformPlane(
 }
 
 bool VideoFrameTransform::transformPos(
-  float x,
-  float y,
-  float* outX,
-  float* outY,
-  int transformMatPlaneIndex) {
+    float x,
+    float y,
+    float* outX,
+    float* outY,
+    int transformMatPlaneIndex,
+    float inputPixelWidth) {
   try {
     int isRight = 0;
 
@@ -814,6 +837,8 @@ bool VideoFrameTransform::transformPos(
     }
 
     float qx, qy, qz, tx, ty, tz, d;
+    float yaw, pitch;
+    bool hasMapping = true;
     y = 1.0f - y;
     array<float, 3> vx, vy, p;
     int face = 0, vFace, hFace;
@@ -842,7 +867,25 @@ bool VideoFrameTransform::transformPos(
         break;
 #endif
       case LAYOUT_EQUIRECT:
-        break;
+        {
+          yaw = (2.0f * x - 1.0f) * M_PI;
+          pitch = (y - 0.5f) * M_PI;
+          break;
+        }
+      case LAYOUT_BARREL:
+        {
+          if (x <= 0.8f) {
+            yaw = (2.5f * x - 1.0f) * ctx_.expand_coef * M_PI;
+            pitch = (y * 0.5f  - 0.25f) * ctx_.expand_coef * M_PI;
+            face = -1;
+          } else {
+            vFace = (int) (y * 2);
+            face = (vFace == 1) ? TOP : BOTTOM;
+            x = x * 5.0f - 4.0f;
+            y = y * 2.0f - vFace;
+          }
+          break;
+        }
       case LAYOUT_N:
         {
           printf(
@@ -855,12 +898,14 @@ bool VideoFrameTransform::transformPos(
       case LAYOUT_CUBEMAP_32:
       case LAYOUT_CUBEMAP_23_OFFCENTER:
       case LAYOUT_EQUIRECT:
+      case LAYOUT_BARREL:
       {
-        if (ctx_.output_layout == LAYOUT_EQUIRECT) {
-          float sin_yaw = sin((2.0f * x - 1.0f) * M_PI);
-          float sin_pitch = sin((y - 0.5f) * M_PI);
-          float cos_yaw = cos((2.0f * x - 1.0f) * M_PI);
-          float cos_pitch = cos((y - 0.5f) * M_PI);
+        if (ctx_.output_layout == LAYOUT_EQUIRECT ||
+            (ctx_.output_layout == LAYOUT_BARREL && face < 0)) {
+          float sin_yaw = sin(yaw);
+          float sin_pitch = sin(pitch);
+          float cos_yaw = cos(yaw);
+          float cos_pitch = cos(pitch);
           qx = sin_yaw * cos_pitch;
           qy = sin_pitch;
           qz = cos_yaw * cos_pitch;
@@ -868,6 +913,14 @@ bool VideoFrameTransform::transformPos(
           assert(x >= 0 && x <= 1);
           assert(y >= 0 && y <= 1);
           assert(face >= 0 && face < 6);
+          if (ctx_.output_layout == LAYOUT_BARREL) {
+            float radius = (x - 0.5f) * (x - 0.5f) + (y - 0.5f) * (y - 0.5f);
+            if (radius > 0.25f * ctx_.expand_coef * ctx_.expand_coef) {
+              hasMapping = false;
+              break;
+            }
+          }
+
           x = (x - 0.5f) * ctx_.expand_coef + 0.5f;
           y = (y - 0.5f) * ctx_.expand_coef + 0.5f;
 
@@ -937,6 +990,10 @@ bool VideoFrameTransform::transformPos(
         d = sqrtf(tx * tx + ty * ty + tz * tz);
 
         *outX = -atan2f (-tx / d, tz / d) / (M_PI * 2.0f) + 0.5f;
+        if (ctx_.output_layout == LAYOUT_BARREL) {
+          // Clamp pixels on the right, since we might have padding from ffmpeg.
+          *outX = std::min(*outX, 1.0f - inputPixelWidth * 0.5f);
+        }
         *outY = asinf (-ty / d) / M_PI + 0.5f;
         break;
       }
@@ -963,33 +1020,38 @@ bool VideoFrameTransform::transformPos(
         }
     }
 
-    switch (ctx_.input_stereo_format) {
-      case STEREO_FORMAT_TB:
-        {
-          if (isRight) {
-            *outY = *outY * kYHalf + kYHalf;
-          } else {
-            *outY = *outY * kYHalf;
-        }
-        break;
-      }
-      case STEREO_FORMAT_LR:
-        {
-          if (isRight) {
-            *outX = *outX * kXHalf + kXHalf;
-          } else {
-            *outX = *outX * kXHalf;
+    if (hasMapping) {
+      switch (ctx_.input_stereo_format) {
+        case STEREO_FORMAT_TB:
+          {
+            if (isRight) {
+              *outY = *outY * kYHalf + kYHalf;
+            } else {
+              *outY = *outY * kYHalf;
           }
           break;
         }
-      case STEREO_FORMAT_MONO:
-      case STEREO_FORMAT_GUESS:
-      case STEREO_FORMAT_N:
-        break;
-    }
+        case STEREO_FORMAT_LR:
+          {
+            if (isRight) {
+              *outX = *outX * kXHalf + kXHalf;
+            } else {
+              *outX = *outX * kXHalf;
+            }
+            break;
+          }
+        case STEREO_FORMAT_MONO:
+        case STEREO_FORMAT_GUESS:
+        case STEREO_FORMAT_N:
+          break;
+      }
 
-    assert(*outX >= 0 && *outX <= 1);
-    assert(*outY >= 0 && *outY <= 1);
+      assert(*outX >= 0 && *outX <= 1);
+      assert(*outY >= 0 && *outY <= 1);
+    } else {
+      *outX = -1;
+      *outY = 0;
+    }
     return true;
   } catch (const exception& ex) {
     printf(
