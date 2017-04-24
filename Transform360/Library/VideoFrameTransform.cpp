@@ -559,8 +559,11 @@ bool VideoFrameTransform::generateMapForPlane(
         float x = (j + 0.5f) / scaledOutputWidth;
         if (transformPos(
             x, y, &outX, &outY, transformMatPlaneIndex, inputPixelWidth)) {
+          // OpenCV uses coordinates system. Where (0, 0) is the center of
+          // top-left pixel instead of a corner. In this case we have to
+          // shift output (x, y) by (-0.5f, -0.5f) to account for this.
           warpMat.at<Point2f>(i, j) =
-            Point2f(outX * inputWidth, outY * inputHeight);
+            Point2f(outX * inputWidth - 0.5f, outY * inputHeight - 0.5f);
         } else {
           printf(
             "Failed to find the mapping coordinate for point (%d, %d)\n",
