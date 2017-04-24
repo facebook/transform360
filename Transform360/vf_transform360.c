@@ -78,7 +78,8 @@ typedef struct TransformContext {
     float height_scale_factor;
     int enable_low_pass_filter;
     float kernel_height_scale_factor;
-    int min_kernel_half_height;
+    float min_kernel_half_height;
+    float max_kernel_half_height;
     int enable_multi_threading;
     int num_vertical_segments;
     int num_horizontal_segments;
@@ -125,6 +126,7 @@ static inline int generate_map(
       .enable_low_pass_filter = s->enable_low_pass_filter,
       .kernel_height_scale_factor = s->kernel_height_scale_factor,
       .min_kernel_half_height = s->min_kernel_half_height,
+      .max_kernel_half_height = s->max_kernel_half_height,
       .enable_multi_threading = s->enable_multi_threading,
       .num_vertical_segments = s->num_vertical_segments,
       .num_horizontal_segments = s->num_horizontal_segments,
@@ -420,7 +422,8 @@ static const AVOption transform360_options[] = {
     { "num_vertical_segments" , "Number of vertical segments per frame plane", OFFSET(num_vertical_segments), AV_OPT_TYPE_INT, {.i64 = 5}, 2, 500, .flags = FLAGS, "num_vertical_segments" },
     { "num_horizontal_segments" , "Number of horizontal segments per frame plane", OFFSET(num_horizontal_segments), AV_OPT_TYPE_INT, {.i64 = 1}, 1, 500, .flags = FLAGS, "num_horizontal_segments" },
     { "kernel_height_scale_factor", "Factor to scale the calculated kernel height for low pass filtering", OFFSET(kernel_height_scale_factor), AV_OPT_TYPE_FLOAT, {.dbl = 1.0}, 0.1, 100.0, .flags = FLAGS, "kernel_height_scale_factor" },
-    { "min_kernel_half_height", "Half of the mininum kernel height", OFFSET(min_kernel_half_height), AV_OPT_TYPE_INT, {.i64 = 1}, 1, 200, .flags = FLAGS, "min_kernel_half_height" },
+    { "min_kernel_half_height", "Half of the mininum kernel height", OFFSET(min_kernel_half_height), AV_OPT_TYPE_FLOAT, {.dbl = 1.0}, 0.5, 200, .flags = FLAGS, "min_kernel_half_height" },
+    { "max_kernel_half_height", "The maximum value of the kernel height", OFFSET(max_kernel_half_height), AV_OPT_TYPE_FLOAT, {.dbl = 10000.0}, 0.5, 100000, .flags = FLAGS, "max_kernel_half_height" },
     { "adjust_kernel", "Enable adjustment of kernel", OFFSET(adjust_kernel), AV_OPT_TYPE_INT, {.i64 = 1}, 0, 1, .flags = FLAGS, "adjust_kernel" },
     { "kernel_adjust_factor", "Factor to further adjust the kernel size", OFFSET(kernel_adjust_factor), AV_OPT_TYPE_FLOAT, {.dbl = 1.0}, 0.1, 100.0, .flags = FLAGS, "kernel_adjust_factor" },
     { NULL }

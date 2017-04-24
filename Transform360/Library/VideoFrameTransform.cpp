@@ -201,7 +201,15 @@ void VideoFrameTransform::filterSegment(
     Mat outputSegment(outputMat(segmentRect));
 
     // Filtering using two 1D kernels
-    sepFilter2D(inputSegment, outputSegment, -1, kernelX, kernelY);
+    sepFilter2D(
+      inputSegment,
+      outputSegment,
+      -1,
+      kernelX,
+      kernelY,
+      Point(-1,-1)  /* anchor */,
+      0  /* delta */,
+      BORDER_REPLICATE);
   } catch (const exception& ex) {
     printf(
       "Could not filter segment for the plane %d. Error: %s\n",
@@ -442,7 +450,7 @@ void VideoFrameTransform::calcualteFilteringConfig(
     case LAYOUT_BARREL:
       {
         hFov = 450.0;
-        vFov = 180.0;
+        vFov = 90.0;
         break;
       }
     case LAYOUT_N:
@@ -453,12 +461,13 @@ void VideoFrameTransform::calcualteFilteringConfig(
       }
   }
 
-  float sigmaY = 0.5 * max(
-      ctx_.min_kernel_half_height,
-      int (
+  float sigmaY = 0.5f * std::min(
+      ctx_.max_kernel_half_height,
+      std::max(
+        ctx_.min_kernel_half_height,
         ctx_.kernel_height_scale_factor *
-        min(inputWidth / 360.0, inputHeight / 180.0) /
-        max(outputWidth / hFov, outputHeight / vFov)));
+          std::min(inputWidth / 360.0f, inputHeight / 180.0f) /
+            std::max(outputWidth / hFov, outputHeight / vFov)));
 
   // Build a basic 1D filter along Y direction
   Mat kernelY = calculateKernel(sigmaY);
@@ -518,21 +527,24 @@ bool VideoFrameTransform::generateMapForPlane(
     assert(
       inputWidth > 0 && inputHeight > 0 &&
       outputWidth > 0 && outputHeight > 0 &&
-      ctx_.width_scale_factor > 0
-      && ctx_.height_scale_factor > 0 &&
+      ctx_.width_scale_factor > 0 &&
+      ctx_.height_scale_factor > 0 &&
       ctx_.kernel_height_scale_factor > 0 &&
       ctx_.num_vertical_segments >= 2 &&
       ctx_.num_vertical_segments <= inputHeight &&
       ctx_.num_horizontal_segments >= 1 &&
       ctx_.num_horizontal_segments <= inputWidth &&
-      ctx_.min_kernel_half_height >= 1);
+      ctx_.min_kernel_half_height >= 0.5 &&
+      ctx_.max_kernel_half_height >= 0.5);
 
     // Both scaling and low pass filtering processes are for antialiasing
     // purpose
-    int scaledOutputWidth = ctx_.enable_low_pass_filter ? outputWidth :
-      min(ctx_.width_scale_factor * outputWidth + 0.5, 1.0 * inputWidth);
-    int scaledOutputHeight = ctx_.enable_low_pass_filter ? outputHeight :
-      min(ctx_.height_scale_factor * outputHeight + 0.5, 1.0 * inputHeight);
+    int scaledOutputWidth = min(
+      (int) (ctx_.width_scale_factor * outputWidth + 0.5),
+      inputWidth);
+    int scaledOutputHeight = min(
+      (int) (ctx_.height_scale_factor * outputHeight + 0.5),
+      inputHeight);
 
     float inputPixelWidth = 1.0f / inputWidth;
     if (ctx_.input_stereo_format == STEREO_FORMAT_LR) {
@@ -565,8 +577,8 @@ bool VideoFrameTransform::generateMapForPlane(
       calcualteFilteringConfig(
         inputWidth,
         inputHeight,
-        outputWidth,
-        outputHeight,
+        scaledOutputWidth,
+        scaledOutputHeight,
         transformMatPlaneIndex);
     }
 
@@ -719,17 +731,11 @@ bool VideoFrameTransform::transformPlane(
   int outputHeight,
   int transformMatPlaneIndex,
   int imagePlaneIndex) {
-  Mat scaledWarpedImage;
   // For Barrel layout we want to have some black spots on the video frame,
   // so we need to change border mode to transparent, to avoid overwriting them.
   int borderMode = (ctx_.output_layout == LAYOUT_BARREL) ?
       BORDER_TRANSPARENT :
       BORDER_WRAP;
-  // We want to set default YUV values to 0.
-  // UV (plane index > 0) planes are scaled from [-1, 1], so we set it to 128.
-  if (transformMatPlaneIndex && ctx_.output_layout == LAYOUT_BARREL) {
-    outputMat.setTo(Scalar(128));
-  }
   try {
     switch (ctx_.interpolation_alg) {
       case NEAREST:
@@ -748,11 +754,17 @@ bool VideoFrameTransform::transformPlane(
             tempMat = inputMat;
           }
 
-          bool needResize = !ctx_.enable_low_pass_filter &&
-            (tempMat.cols != outputWidth ||
-            tempMat.rows != outputHeight);
+          bool needResize =
+            (outputHeight != warpMats_[transformMatPlaneIndex].rows ||
+            outputWidth != warpMats_[transformMatPlaneIndex].cols);
 
           if (!needResize) {
+            // We want to set default YUV values to 0.
+            // UV (plane index > 0) planes are scaled from [-1, 1],
+            // so we set it to 128.
+            if (transformMatPlaneIndex && ctx_.output_layout == LAYOUT_BARREL) {
+              outputMat.setTo(Scalar(128));
+            }
             remap(
               tempMat,
               outputMat,
@@ -761,6 +773,13 @@ bool VideoFrameTransform::transformPlane(
               ctx_.interpolation_alg,
               borderMode);
           } else {
+            // We want to set default YUV values to 0.
+            // UV (plane index > 0) planes are scaled from [-1, 1],
+            // so we set it to 128.
+            Mat scaledWarpedImage(
+              warpMats_[transformMatPlaneIndex].size(),
+              tempMat.type(),
+              Scalar(transformMatPlaneIndex ? 128 : 0));
             remap(
               tempMat,
               scaledWarpedImage,
@@ -771,7 +790,7 @@ bool VideoFrameTransform::transformPlane(
             resize(
               scaledWarpedImage,
               outputMat,
-              outputMat.size(),
+              Size(outputWidth, outputHeight),
               0,
               0,
               INTER_AREA);
