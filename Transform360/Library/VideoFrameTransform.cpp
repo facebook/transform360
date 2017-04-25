@@ -1029,6 +1029,7 @@ bool VideoFrameTransform::transformPos(
         if (ctx_.output_layout == LAYOUT_BARREL) {
           // Clamp pixels on the right, since we might have padding from ffmpeg.
           *outX = std::min(*outX, 1.0f - inputPixelWidth * 0.5f);
+          *outX = std::max(*outX, inputPixelWidth * 0.5f);
         }
         *outY = asinf (-ty / d) / M_PI + 0.5f;
         break;
