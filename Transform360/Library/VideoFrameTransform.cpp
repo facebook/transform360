@@ -453,6 +453,12 @@ void VideoFrameTransform::calcualteFilteringConfig(
         vFov = 90.0;
         break;
       }
+    case LAYOUT_EAC_32:
+      {
+        hFov = 270.0;
+        vFov = 180.0;
+        break;
+      }
     case LAYOUT_N:
       {
         printf(
@@ -908,6 +914,17 @@ bool VideoFrameTransform::transformPos(
           }
           break;
         }
+      case LAYOUT_EAC_32:
+        {
+          vFace = (int) (y * 2);
+          hFace = (int) (x * 3);
+          x = x * 3.0f - hFace;
+          y = y * 2.0f - vFace;
+          x = tan((x - 0.5f) * M_PI * 0.5f) * 0.5f + 0.5f;
+          y = tan((y - 0.5f) * M_PI * 0.5f) * 0.5f + 0.5f;
+          face = hFace + (1 - vFace) * 3;
+          break;
+        }
       case LAYOUT_N:
         {
           printf(
@@ -921,6 +938,7 @@ bool VideoFrameTransform::transformPos(
       case LAYOUT_CUBEMAP_23_OFFCENTER:
       case LAYOUT_EQUIRECT:
       case LAYOUT_BARREL:
+      case LAYOUT_EAC_32:
       {
         if (ctx_.output_layout == LAYOUT_EQUIRECT ||
             (ctx_.output_layout == LAYOUT_BARREL && face < 0)) {

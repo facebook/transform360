@@ -32,6 +32,7 @@ typedef enum Layout {
 #endif
   LAYOUT_EQUIRECT,
   LAYOUT_BARREL,
+  LAYOUT_EAC_32,
   LAYOUT_N
 } Layout;
 
