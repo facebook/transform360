@@ -545,12 +545,10 @@ bool VideoFrameTransform::generateMapForPlane(
 
     // Both scaling and low pass filtering processes are for antialiasing
     // purpose
-    int scaledOutputWidth = min(
-      (int) (ctx_.width_scale_factor * outputWidth + 0.5),
-      inputWidth);
-    int scaledOutputHeight = min(
-      (int) (ctx_.height_scale_factor * outputHeight + 0.5),
-      inputHeight);
+    int scaledOutputWidth =
+      (int) (ctx_.width_scale_factor * outputWidth + 0.5);
+    int scaledOutputHeight =
+      (int) (ctx_.height_scale_factor * outputHeight + 0.5);
 
     float inputPixelWidth = 1.0f / inputWidth;
     if (ctx_.input_stereo_format == STEREO_FORMAT_LR) {
