@@ -29,6 +29,7 @@
 using namespace cv;
 using namespace std;
 
+constexpr float kCubemapSideDistance = 0.5f;
 static const float kXHalf = 0.5;
 static const float kYHalf = 0.5;
 static double kEpsilon = 1e-9;
@@ -820,6 +821,105 @@ bool VideoFrameTransform::transformPlane(
   return true;
 }
 
+void VideoFrameTransform::transformCubeFacePos(
+  float tx,
+  float ty,
+  float tz,
+  float *outX,
+  float *outY
+) {
+  float x, y;
+
+  if (tz <= -kCubemapSideDistance) {
+    x = tx / tz;
+    y = ty / tz;
+    if (x >= -1.0 && x <= 1.0 && y >= -1.0 && y <= 1.0) {
+      *outX = (5.0f + x / ctx_.input_expand_coef) / 6.0f;
+      *outY = (3.0f + y / ctx_.input_expand_coef) / 4.0f;
+      return;
+    }
+  }
+  if (tz >= kCubemapSideDistance) {
+    x = tx / tz;
+    y = ty / tz;
+    if (x >= -1.0 && x <= 1.0 && y >= -1.0 && y <= 1.0) {
+      *outX = (3.0f + x / ctx_.input_expand_coef) / 6.0f;
+      *outY = (3.0f - y / ctx_.input_expand_coef) / 4.0f;
+      return;
+    }
+  }
+  if (tx <= -kCubemapSideDistance) {
+    x = tz / tx;
+    y = ty / tx;
+    if (x >= -1.0 && x <= 1.0 && y >= -1.0 && y <= 1.0) {
+      *outX = (3.0f - x / ctx_.input_expand_coef) / 6.0f;
+      *outY = (1.0f + y / ctx_.input_expand_coef) / 4.0f;
+      return;
+    }
+  }
+  if (tx >= kCubemapSideDistance) {
+    x = tz / tx;
+    y = ty / tx;
+    if (x >= -1.0 && x <= 1.0 && y >= -1.0 && y <= 1.0) {
+      *outX = (1.0f - x / ctx_.input_expand_coef) / 6.0f;
+      *outY = (1.0f - y / ctx_.input_expand_coef) / 4.0f;
+      return;
+    }
+  }
+  if (ty <= -kCubemapSideDistance) {
+    x = tx / ty;
+    y = tz / ty;
+    if (x >= -1.0 && x <= 1.0 && y >= -1.0 && y <= 1.0) {
+      *outX = (1.0f - x / ctx_.input_expand_coef) / 6.0f;
+      *outY = (3.0f + y / ctx_.input_expand_coef) / 4.0f;
+      return;
+    }
+  }
+  if (ty >= kCubemapSideDistance) {
+    x = tx / ty;
+    y = tz / ty;
+    if (x >= -1.0 && x <= 1.0 && y >= -1.0 && y <= 1.0) {
+      *outX = (5.0f + x / ctx_.input_expand_coef) / 6.0f;
+      *outY = (1.0f + y / ctx_.input_expand_coef) / 4.0f;
+      return;
+    }
+  }
+  // Return outside coordinates.
+  *outX = -1.0f;
+  *outY = 0.0f;
+}
+
+void VideoFrameTransform::transformInputPos(
+    float tx,
+    float ty,
+    float tz,
+    float inputPixelWidth,
+    float* outX,
+    float* outY) {
+  switch (ctx_.input_layout) {
+    case LAYOUT_CUBEMAP_32:
+    {
+      float d = sqrtf(tx * tx + ty * ty + tz * tz);
+      transformCubeFacePos(tx / d, ty / d, tz / d, outX, outY);
+      break;
+    }
+    default:
+    {
+      // Assumming equirect
+      float d = sqrtf(tx * tx + ty * ty + tz * tz);
+
+      *outX = -atan2f (-tx / d, tz / d) / (M_PI * 2.0f) + 0.5f;
+      if (ctx_.output_layout == LAYOUT_BARREL) {
+        // Clamp pixels on the right, since we might have padding from ffmpeg.
+        *outX = std::min(*outX, 1.0f - inputPixelWidth * 0.5f);
+        *outX = std::max(*outX, inputPixelWidth * 0.5f);
+      }
+      *outY = asinf (-ty / d) / M_PI + 0.5f;
+      break;
+    }
+  }
+}
+
 bool VideoFrameTransform::transformPos(
     float x,
     float y,
@@ -1039,15 +1139,7 @@ bool VideoFrameTransform::transformPos(
 
         ty = -ty;
 
-        d = sqrtf(tx * tx + ty * ty + tz * tz);
-
-        *outX = -atan2f (-tx / d, tz / d) / (M_PI * 2.0f) + 0.5f;
-        if (ctx_.output_layout == LAYOUT_BARREL) {
-          // Clamp pixels on the right, since we might have padding from ffmpeg.
-          *outX = std::min(*outX, 1.0f - inputPixelWidth * 0.5f);
-          *outX = std::max(*outX, inputPixelWidth * 0.5f);
-        }
-        *outY = asinf (-ty / d) / M_PI + 0.5f;
+        transformInputPos(tx, ty, tz, inputPixelWidth, outX, outY);
         break;
       }
  #ifdef FACEBOOK_LAYOUT

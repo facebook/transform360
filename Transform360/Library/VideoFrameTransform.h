@@ -72,6 +72,24 @@ class VideoFrameTransform
       int imagePlaneIndex);
 
   private:
+    // Transforms normalized 3D vector to 2d cubemap coordinates
+    void transformCubeFacePos(
+      float tx,
+      float ty,
+      float tz,
+      float *outX,
+      float *outY);
+
+    // Transforms 3D vector to the input 2d coordinates
+    // Only supports CUBEMAP_32 and EQUIRECT formats
+    void transformInputPos(
+      float tx,
+      float ty,
+      float tz,
+      float inputPixelWidth,
+      float* outX,
+      float* outY);
+
     bool transformPos(
       float x,
       float y,

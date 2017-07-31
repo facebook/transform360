@@ -52,11 +52,13 @@ typedef enum InterpolationAlg {
 } InterpolationAlg;
 
 typedef struct FrameTransformContext {
+  Layout input_layout;
   Layout output_layout;
   StereoFormat input_stereo_format;
   StereoFormat output_stereo_format;
   int vflip;
-  float expand_coef;
+  float input_expand_coef;  /// Expansion coefficient for the input
+  float expand_coef;  /// Expansion coefficient for the output
   InterpolationAlg interpolation_alg;
   float width_scale_factor; /// Width scale factor for antialiasing purpose
   float height_scale_factor; /// Height scale factor for antialiasing purpose
