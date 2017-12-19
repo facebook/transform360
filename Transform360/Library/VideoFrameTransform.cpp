@@ -442,6 +442,12 @@ void VideoFrameTransform::calcualteFilteringConfig(
       calculateFov(ctx_.fixed_hfov, ctx_.fixed_vfov, hFov, vFov);
       break;
 #endif
+    case LAYOUT_FLAT_FIXED:
+      {
+        hFov = ctx_.fixed_hfov;
+        vFov = ctx_.fixed_vfov;
+        break;
+      }
     case LAYOUT_EQUIRECT:
       {
         hFov = 360.0;
@@ -965,7 +971,9 @@ bool VideoFrameTransform::transformPos(
     float qx, qy, qz, tx, ty, tz, d;
     float yaw, pitch;
     bool hasMapping = true;
-    y = 1.0f - y;
+    if (ctx_.output_layout != LAYOUT_FLAT_FIXED) {
+      y = 1.0f - y;
+    }
     array<float, 3> vx, vy, p;
     int face = 0, vFace, hFace;
 
@@ -992,6 +1000,8 @@ bool VideoFrameTransform::transformPos(
       case LAYOUT_FB:
         break;
 #endif
+      case LAYOUT_FLAT_FIXED:
+        break;
       case LAYOUT_EQUIRECT:
         {
           yaw = (2.0f * x - 1.0f) * M_PI;
@@ -1157,6 +1167,13 @@ bool VideoFrameTransform::transformPos(
         break;
       }
 #endif
+      case LAYOUT_FLAT_FIXED:
+      {
+        *outX = ((x - 0.5f) * ctx_.fixed_hfov + ctx_.fixed_yaw) / 360.0f + 0.5f;
+        *outY = ((y - 0.5f) * ctx_.fixed_vfov - ctx_.fixed_pitch) / 180.0f + 0.5f;
+        normalize_equirectangular(*outX, *outY, outX, outY);
+        break;
+      }
       case LAYOUT_N:
         {
           printf(

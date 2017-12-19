@@ -69,6 +69,8 @@ typedef struct TransformContext {
     float fixed_yaw;    ///< Yaw (asimuth) angle, degrees
     float fixed_pitch;  ///< Pitch (elevation) angle, degrees
     float fixed_roll;   ///< Roll (tilt) angle, degrees
+    float fixed_hfov;   ///< Horizontal field of view, degrees
+    float fixed_vfov;   ///< Vertical field of view, degrees
     float fixed_cube_offcenter_x; // offcenter projection x
     float fixed_cube_offcenter_y; // offcenter projection y
     float fixed_cube_offcenter_z; // offcenter projection z
@@ -123,6 +125,8 @@ static inline int generate_map(
       .fixed_yaw = s->fixed_yaw,
       .fixed_pitch = s->fixed_pitch,
       .fixed_roll = s->fixed_roll,
+      .fixed_hfov = s->fixed_hfov,
+      .fixed_vfov = s->fixed_vfov,
       .fixed_cube_offcenter_x = s->fixed_cube_offcenter_x,
       .fixed_cube_offcenter_y = s->fixed_cube_offcenter_y,
       .fixed_cube_offcenter_z = s->fixed_cube_offcenter_z,
@@ -398,9 +402,11 @@ static const AVOption transform360_options[] = {
     { "EQUIRECT",NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_EQUIRECT },0, 0, FLAGS, "layout" },
     { "BARREL",  NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_BARREL },  0, 0, FLAGS, "layout" },
     { "EAC_32",  NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_EAC_32 },  0, 0, FLAGS, "layout" },
+    { "FLAT_FIXED",          NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_FLAT_FIXED },          0, 0, FLAGS, "layout" },
     { "cubemap_32",          NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_CUBEMAP_32 },          0, 0, FLAGS, "layout" },
     { "cubemap_23_offcenter",NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_CUBEMAP_23_OFFCENTER },0, 0, FLAGS, "layout" },
     { "equirect",NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_EQUIRECT },0, 0, FLAGS, "layout" },
+    { "flat_fixed",          NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_FLAT_FIXED },          0, 0, FLAGS, "layout" },
     { "barrel",  NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_BARREL },  0, 0, FLAGS, "layout" },
     { "eac_32",  NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_EAC_32 },  0, 0, FLAGS, "layout" },
     { "vflip", "Output video 2nd eye vertical flip (true, false)",         OFFSET(vflip),    AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 1,     .flags = FLAGS, "vflip" },
@@ -411,6 +417,8 @@ static const AVOption transform360_options[] = {
     { "yaw", "View orientation for flat_fixed projection, degrees",   OFFSET(fixed_yaw),          AV_OPT_TYPE_FLOAT,   {.dbl =   0.0}, -360, 360,  .flags = FLAGS },
     { "pitch", "View orientation for flat_fixed projection, degrees", OFFSET(fixed_pitch),        AV_OPT_TYPE_FLOAT,   {.dbl =   0.0}, -180, 180,  .flags = FLAGS },
     { "roll", "View orientation for flat_fixed projection, degrees",  OFFSET(fixed_roll),         AV_OPT_TYPE_FLOAT,   {.dbl =   0.0}, -180, 180,  .flags = FLAGS },
+    { "hfov", "Horizontal field of view for flat_fixed projection, degrees (default 120)",  OFFSET(fixed_hfov), AV_OPT_TYPE_FLOAT,   {.dbl = 120.0}, -360, 360,  .flags = FLAGS },
+    { "vfov", "Vertical field of view for flat_fixed projection, degrees (default 110)",     OFFSET(fixed_vfov), AV_OPT_TYPE_FLOAT,   {.dbl = 110.0}, -180, 180,  .flags = FLAGS },
     { "cube_offcenter_x", "Offcenter cube displacement x",   OFFSET(fixed_cube_offcenter_x),          AV_OPT_TYPE_FLOAT,   {.dbl =   0.0}, -1, 1,  .flags = FLAGS },
     { "cube_offcenter_y", "Offcenter cube displacement y",   OFFSET(fixed_cube_offcenter_y),          AV_OPT_TYPE_FLOAT,   {.dbl =   0.0}, -1, 1,  .flags = FLAGS },
     { "cube_offcenter_z", "Offcenter cube displacement z",   OFFSET(fixed_cube_offcenter_z),          AV_OPT_TYPE_FLOAT,   {.dbl =   0.0}, -1, 1,  .flags = FLAGS },
