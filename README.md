@@ -32,6 +32,12 @@ sudo make install
 6. Edit `libavfilter/allfilters.c` and register the filter by adding the following line in the video filter registration section:
 
 ```
+extern AVFilter ff_vf_transform360;
+```
+
+For older ffmpeg versions (i.e., if you see existing filters are registered with REGISTER_FILTER), please instead add
+
+```
 REGISTER_FILTER(TRANSFORM360, transform360, vf);
 ```
 
@@ -97,7 +103,10 @@ Transform is implemented as an ffmpeg video filter. To build Transform, follow t
 1. Checkout the source for ffmpeg.
 2. Copy `vf_transform_v1.c` to the libavfilter subdirectory in ffmpeg source.
 3. Edit `libavfilter/allfilters.c` and register the filter by adding the
-   line: `REGISTER_FILTER(TRANSFORM_V1, transform_v1, vf);` in the video filter registration section.
+   line: `extern AVFilter ff_vf_transform_v1;` For older ffmpeg versions
+   (i.e., if you see existing filters are registered with REGISTER_FILTER),
+   please instead add `REGISTER_FILTER(TRANSFORM_V1, transform_v1, vf);`
+   in the video filter registration section.
 4. Edit `libavfilter/Makefile` and add the filter to adding the
    line: `OBJS-$(CONFIG_TRANSFORM_V1_FILTER) += vf_transform_v1.o` in the filter section.
 5. Configure and build ffmpeg as usual.
