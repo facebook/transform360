@@ -92,6 +92,24 @@ typedef struct TransformContext {
 
 } TransformContext;
 
+static int query_formats(AVFilterContext *ctx)
+{
+    static const enum AVPixelFormat pix_fmts[] = {
+    AV_PIX_FMT_GBRP,
+    AV_PIX_FMT_YUV410P,
+    AV_PIX_FMT_YUV411P,
+    AV_PIX_FMT_YUV420P,
+    AV_PIX_FMT_YUV422P,
+    AV_PIX_FMT_YUV440P,
+    AV_PIX_FMT_YUV444P,
+    AV_PIX_FMT_NONE
+    };
+    AVFilterFormats *fmts_list = ff_make_format_list(pix_fmts);
+    if (!fmts_list)
+        return AVERROR(ENOMEM);
+    return ff_set_common_formats(ctx, fmts_list);
+}
+
 static inline void update_plane_sizes(
     AVPixFmtDescriptor* desc,
     int* in_w, int* in_h, int* out_w, int* out_h) {
@@ -472,12 +490,13 @@ static const AVFilterPad avfilter_vf_transform_outputs[] = {
 };
 
 AVFilter ff_vf_transform360 = {
-    .name        = "transform360",
-    .description = NULL_IF_CONFIG_SMALL("Transforms equirectangular input video to the other format."),
-    .init_dict   = init_dict,
-    .uninit      = uninit,
-    .priv_size   = sizeof(TransformContext),
-    .priv_class  = &transform360_class,
-    .inputs      = avfilter_vf_transform_inputs,
-    .outputs     = avfilter_vf_transform_outputs,
+    .name           = "transform360",
+    .description    = NULL_IF_CONFIG_SMALL("Transforms equirectangular input video to the other format."),
+    .init_dict      = init_dict,
+    .uninit         = uninit,
+    .priv_size      = sizeof(TransformContext),
+    .priv_class     = &transform360_class,
+    .query_formats  = query_formats,
+    .inputs         = avfilter_vf_transform_inputs,
+    .outputs        = avfilter_vf_transform_outputs,
 };
