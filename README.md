@@ -125,3 +125,7 @@ ffmpeg -i input.mp4
     :max_cube_edge_length=512"
     output.mp4
 ```
+
+### License
+
+Transform360 and Transform_V1 are BSD licensed, as found in the LICENSE file.
