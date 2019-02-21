@@ -101,6 +101,7 @@ typedef enum Layout {
     LAYOUT_PLANE_CUBEMAP,
     LAYOUT_PLANE_CUBEMAP_32,
     LAYOUT_FLAT_FIXED,
+    LAYOUT_BARREL,
 
     LAYOUT_N
 } Layout;
@@ -196,8 +197,17 @@ static inline void normalize_equirectangular(float x, float y, float *xout, floa
     *yout = y;
 }
 
-static inline void transform_pos(TransformContext *ctx, float x, float y, float *outX, float *outY) {
+static inline void transform_pos(
+        TransformContext *ctx,
+        float x, float y,
+        float *outX, float *outY,
+        int *has_mapping,
+        float input_pixel_w
+        )
+{
     int is_right = 0;
+
+    *has_mapping = 1;
     if (ctx->input_stereo_format != STEREO_FORMAT_MONO) {
         if (y > Y_HALF) {
             y = (y - Y_HALF) / Y_HALF;
@@ -287,10 +297,12 @@ static inline void transform_pos(TransformContext *ctx, float x, float y, float 
             ctx->output_layout == LAYOUT_CUBEMAP_32 ||
             ctx->output_layout == LAYOUT_CUBEMAP_180 ||
             ctx->output_layout == LAYOUT_PLANE_CUBEMAP_32 ||
-            ctx->output_layout == LAYOUT_PLANE_CUBEMAP) {
+            ctx->output_layout == LAYOUT_PLANE_CUBEMAP ||
+            ctx->output_layout == LAYOUT_BARREL) {
         float qx, qy, qz;
         float cos_y, cos_p, sin_y, sin_p;
         float tx, ty, tz;
+        float yaw, pitch;
         float d;
         y = 1.0f - y;
 
@@ -415,26 +427,57 @@ static inline void transform_pos(TransformContext *ctx, float x, float y, float 
             face = (int) (x * 6);
             x = x * 6.0f - face;
             face = PLANE_CUBEMAP_FACE_MAP[face];
+        } else if (ctx->output_layout == LAYOUT_BARREL) {
+          if (x <= 0.8f) {
+            yaw = (2.5f * x - 1.0f) * ctx->expand_coef * M_PI;
+            pitch = (y * 0.5f  - 0.25f) * ctx->expand_coef * M_PI;
+            face = -1;
+          } else {
+            int vFace = (int) (y * 2);
+            face = (vFace == 1) ? TOP : BOTTOM;
+            x = x * 5.0f - 4.0f;
+            y = y * 2.0f - vFace;
+          }
         } else {
             av_assert0(0);
         }
-        av_assert1(x >= 0 && x <= 1);
-        av_assert1(y >= 0 && y <= 1);
-        av_assert1(face >= 0 && face < 6);
-        x = (x - 0.5f) * ctx->expand_coef + 0.5f;
-        y = (y - 0.5f) * ctx->expand_coef + 0.5f;
 
-        switch (face) {
-            case RIGHT:   p = P5; vx = NZ; vy = PY; break;
-            case LEFT:    p = P0; vx = PZ; vy = PY; break;
-            case TOP:     p = P6; vx = PX; vy = NZ; break;
-            case BOTTOM:  p = P0; vx = PX; vy = PZ; break;
-            case FRONT:   p = P4; vx = PX; vy = PY; break;
-            case BACK:    p = P1; vx = NX; vy = PY; break;
+        if (ctx->output_layout == LAYOUT_BARREL && face < 0) {
+          float sin_yaw = sin(yaw);
+          float sin_pitch = sin(pitch);
+          float cos_yaw = cos(yaw);
+          float cos_pitch = cos(pitch);
+          qx = sin_yaw * cos_pitch;
+          qy = sin_pitch;
+          qz = cos_yaw * cos_pitch;
+        } else {
+          av_assert1(x >= 0 && x <= 1);
+          av_assert1(y >= 0 && y <= 1);
+          av_assert1(face >= 0 && face < 6);
+
+          if (ctx->output_layout == LAYOUT_BARREL) {
+            float radius = (x - 0.5f) * (x - 0.5f) + (y - 0.5f) * (y - 0.5f);
+            if (radius > 0.25f * ctx->expand_coef * ctx->expand_coef) {
+              *has_mapping = 0;
+              return;
+            }
+          }
+
+          x = (x - 0.5f) * ctx->expand_coef + 0.5f;
+          y = (y - 0.5f) * ctx->expand_coef + 0.5f;
+
+          switch (face) {
+              case RIGHT:   p = P5; vx = NZ; vy = PY; break;
+              case LEFT:    p = P0; vx = PZ; vy = PY; break;
+              case TOP:     p = P6; vx = PX; vy = NZ; break;
+              case BOTTOM:  p = P0; vx = PX; vy = PZ; break;
+              case FRONT:   p = P4; vx = PX; vy = PY; break;
+              case BACK:    p = P1; vx = NX; vy = PY; break;
+          }
+          qx = p [0] + vx [0] * x + vy [0] * y;
+          qy = p [1] + vx [1] * x + vy [1] * y;
+          qz = p [2] + vx [2] * x + vy [2] * y;
         }
-        qx = p [0] + vx [0] * x + vy [0] * y;
-        qy = p [1] + vx [1] * x + vy [1] * y;
-        qz = p [2] + vx [2] * x + vy [2] * y;
 
         // rotation
         sin_y = sin(ctx->fixed_yaw*M_PI/180.0f);
@@ -447,6 +490,10 @@ static inline void transform_pos(TransformContext *ctx, float x, float y, float 
 
         d = sqrtf(tx * tx + ty * ty + tz * tz);
         *outX = -atan2f (-tx / d, tz / d) / (M_PI * 2.0f) + 0.5f;
+        if (ctx->output_layout == LAYOUT_BARREL) {
+          *outX = FFMIN(*outX, 1.0f - input_pixel_w * 0.5f);
+          *outX = FFMAX(*outX, input_pixel_w * 0.5f);
+        }
         *outY = asinf (-ty / d) / M_PI + 0.5f;
     }
 
@@ -541,6 +588,12 @@ static inline int generate_map(TransformContext *s,
         if (!p->weights) {
             return AVERROR(ENOMEM);
         }
+
+        float input_pixel_w = 1.0f / in_w;
+        if (s->input_stereo_format == STEREO_FORMAT_LR) {
+          input_pixel_w *= 2;
+        }
+
         for (int i = 0; i < out_h; ++i) {
             for (int j = 0; j < out_w; ++j) {
                 int id = i * out_w + j;
@@ -554,7 +607,13 @@ static inline int generate_map(TransformContext *s,
                         int in_x, in_y;
                         uint32_t in_id;
                         int result;
-                        transform_pos(s, x, y, &out_x, &out_y);
+                        int has_mapping;
+                        transform_pos(
+                          s, x, y, &out_x, &out_y, &has_mapping, input_pixel_w);
+
+                        if (!has_mapping) {
+                          continue;
+                        }
 
                         in_y = (int) (out_y * in_h);
                         in_x = (int) (out_x * in_w);
@@ -945,6 +1004,7 @@ static const AVOption transform_options[] = {
     { "PLANE_CUBEMAP",       NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_PLANE_CUBEMAP },       0, 0, FLAGS, "layout" },
     { "PLANE_CUBEMAP_32",    NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_PLANE_CUBEMAP_32 },    0, 0, FLAGS, "layout" },
     { "FLAT_FIXED",          NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_FLAT_FIXED },          0, 0, FLAGS, "layout" },
+    { "BARREL",              NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_BARREL },              0, 0, FLAGS, "layout" },
     { "cubemap",             NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_CUBEMAP },             0, 0, FLAGS, "layout" },
     { "cubemap_32",          NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_CUBEMAP_32 },          0, 0, FLAGS, "layout" },
     { "cubemap_180",         NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_CUBEMAP_180 },         0, 0, FLAGS, "layout" },
@@ -954,6 +1014,7 @@ static const AVOption transform_options[] = {
     { "plane_cubemap",       NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_PLANE_CUBEMAP },       0, 0, FLAGS, "layout" },
     { "plane_cubemap_32",    NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_PLANE_CUBEMAP_32 },    0, 0, FLAGS, "layout" },
     { "flat_fixed",          NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_FLAT_FIXED },          0, 0, FLAGS, "layout" },
+    { "barrel",              NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_BARREL },              0, 0, FLAGS, "layout" },
     { "vflip", "Output video 2nd eye vertical flip (true, false)",         OFFSET(vflip),    AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 1,     .flags = FLAGS, "vflip" },
     { "false",  NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0 }, 0, 0, FLAGS, "vflip" },
     { "true",   NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1 }, 0, 0, FLAGS, "vflip" },
