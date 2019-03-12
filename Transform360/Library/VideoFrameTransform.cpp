@@ -426,6 +426,7 @@ void VideoFrameTransform::calcualteFilteringConfig(
   float hFov, vFov;
   switch (ctx_.output_layout) {
     case LAYOUT_CUBEMAP_32:
+    case LAYOUT_TB_ONLY:
       {
         hFov = 270.0;
         vFov = 180.0;
@@ -996,6 +997,13 @@ bool VideoFrameTransform::transformPos(
           face = hFace + (2 - vFace) * 2;
           break;
         }
+      case LAYOUT_TB_ONLY:
+        {
+          vFace = (int) (y * 2);
+          y = y * 2.0f - vFace;
+          face = 3 - vFace;
+          break;
+        }
 #ifdef FACEBOOK_LAYOUT
       case LAYOUT_FB:
         break;
@@ -1047,6 +1055,7 @@ bool VideoFrameTransform::transformPos(
       case LAYOUT_EQUIRECT:
       case LAYOUT_BARREL:
       case LAYOUT_EAC_32:
+      case LAYOUT_TB_ONLY:
       {
         if (ctx_.output_layout == LAYOUT_EQUIRECT ||
             (ctx_.output_layout == LAYOUT_BARREL && face < 0)) {
