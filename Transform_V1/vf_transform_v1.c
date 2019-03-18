@@ -102,6 +102,8 @@ typedef enum Layout {
     LAYOUT_PLANE_CUBEMAP_32,
     LAYOUT_FLAT_FIXED,
     LAYOUT_BARREL,
+    LAYOUT_TB_ONLY,
+    LAYOUT_TB_BARREL_ONLY,
 
     LAYOUT_N
 } Layout;
@@ -298,7 +300,9 @@ static inline void transform_pos(
             ctx->output_layout == LAYOUT_CUBEMAP_180 ||
             ctx->output_layout == LAYOUT_PLANE_CUBEMAP_32 ||
             ctx->output_layout == LAYOUT_PLANE_CUBEMAP ||
-            ctx->output_layout == LAYOUT_BARREL) {
+            ctx->output_layout == LAYOUT_BARREL ||
+            ctx->output_layout == LAYOUT_TB_ONLY ||
+            ctx->output_layout == LAYOUT_TB_BARREL_ONLY) {
         float qx, qy, qz;
         float cos_y, cos_p, sin_y, sin_p;
         float tx, ty, tz;
@@ -438,6 +442,11 @@ static inline void transform_pos(
             x = x * 5.0f - 4.0f;
             y = y * 2.0f - vFace;
           }
+        } else if (ctx->output_layout == LAYOUT_TB_ONLY ||
+                ctx->output_layout == LAYOUT_TB_BARREL_ONLY) {
+          int vFace = (int) (y * 2);
+          face = (vFace == 1) ? TOP : BOTTOM;
+          y = y * 2.0f - vFace;
         } else {
             av_assert0(0);
         }
@@ -455,7 +464,8 @@ static inline void transform_pos(
           av_assert1(y >= 0 && y <= 1);
           av_assert1(face >= 0 && face < 6);
 
-          if (ctx->output_layout == LAYOUT_BARREL) {
+          if (ctx->output_layout == LAYOUT_BARREL ||
+            ctx->output_layout == LAYOUT_TB_BARREL_ONLY) {
             float radius = (x - 0.5f) * (x - 0.5f) + (y - 0.5f) * (y - 0.5f);
             if (radius > 0.25f * ctx->expand_coef * ctx->expand_coef) {
               *has_mapping = 0;
@@ -1005,6 +1015,8 @@ static const AVOption transform_options[] = {
     { "PLANE_CUBEMAP_32",    NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_PLANE_CUBEMAP_32 },    0, 0, FLAGS, "layout" },
     { "FLAT_FIXED",          NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_FLAT_FIXED },          0, 0, FLAGS, "layout" },
     { "BARREL",              NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_BARREL },              0, 0, FLAGS, "layout" },
+    { "TB_ONLY",             NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_TB_ONLY },             0, 0, FLAGS, "layout" },
+    { "TB_BARREL_ONLY",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_TB_BARREL_ONLY },      0, 0, FLAGS, "layout" },
     { "cubemap",             NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_CUBEMAP },             0, 0, FLAGS, "layout" },
     { "cubemap_32",          NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_CUBEMAP_32 },          0, 0, FLAGS, "layout" },
     { "cubemap_180",         NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_CUBEMAP_180 },         0, 0, FLAGS, "layout" },
@@ -1015,6 +1027,8 @@ static const AVOption transform_options[] = {
     { "plane_cubemap_32",    NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_PLANE_CUBEMAP_32 },    0, 0, FLAGS, "layout" },
     { "flat_fixed",          NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_FLAT_FIXED },          0, 0, FLAGS, "layout" },
     { "barrel",              NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_BARREL },              0, 0, FLAGS, "layout" },
+    { "tb_only",             NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_TB_ONLY },             0, 0, FLAGS, "layout" },
+    { "tb_barrel_only",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = LAYOUT_TB_BARREL_ONLY },      0, 0, FLAGS, "layout" },
     { "vflip", "Output video 2nd eye vertical flip (true, false)",         OFFSET(vflip),    AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 1,     .flags = FLAGS, "vflip" },
     { "false",  NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0 }, 0, 0, FLAGS, "vflip" },
     { "true",   NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1 }, 0, 0, FLAGS, "vflip" },
