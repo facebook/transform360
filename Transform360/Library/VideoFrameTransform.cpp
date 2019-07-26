@@ -456,6 +456,7 @@ void VideoFrameTransform::calcualteFilteringConfig(
         break;
       }
     case LAYOUT_BARREL:
+    case LAYOUT_BARREL_SPLIT:
     case LAYOUT_TB_BARREL_ONLY:
       {
         hFov = 450.0;
@@ -749,7 +750,8 @@ bool VideoFrameTransform::transformPlane(
   int imagePlaneIndex) {
   // For Barrel layout we want to have some black spots on the video frame,
   // so we need to change border mode to transparent, to avoid overwriting them.
-  int borderMode = (ctx_.output_layout == LAYOUT_BARREL) ?
+  int borderMode =
+      (ctx_.output_layout == LAYOUT_BARREL || LAYOUT_BARREL_SPLIT) ?
       BORDER_TRANSPARENT :
       BORDER_WRAP;
   try {
@@ -778,7 +780,9 @@ bool VideoFrameTransform::transformPlane(
             // We want to set default YUV values to 0.
             // UV (plane index > 0) planes are scaled from [-1, 1],
             // so we set it to 128.
-            if (transformMatPlaneIndex && ctx_.output_layout == LAYOUT_BARREL) {
+            if (transformMatPlaneIndex &&
+              (ctx_.output_layout == LAYOUT_BARREL ||
+              ctx_.output_layout == LAYOUT_BARREL_SPLIT)) {
               outputMat.setTo(Scalar(128));
             }
             remap(
@@ -917,7 +921,8 @@ void VideoFrameTransform::transformInputPos(
       float d = sqrtf(tx * tx + ty * ty + tz * tz);
 
       *outX = -atan2f (-tx / d, tz / d) / (M_PI * 2.0f) + 0.5f;
-      if (ctx_.output_layout == LAYOUT_BARREL) {
+      if (ctx_.output_layout == LAYOUT_BARREL ||
+        ctx_.output_layout == LAYOUT_BARREL_SPLIT) {
         // Clamp pixels on the right, since we might have padding from ffmpeg.
         *outX = std::min(*outX, 1.0f - inputPixelWidth * 0.5f);
         *outX = std::max(*outX, inputPixelWidth * 0.5f);
@@ -1032,6 +1037,21 @@ bool VideoFrameTransform::transformPos(
           }
           break;
         }
+      case LAYOUT_BARREL_SPLIT:
+        {
+          vFace = (int) (y * 2);
+          if (3.0f * x <= 2.0f) {
+            yaw = ((3.0f / 2.0f * x - 0.5f) * ctx_.expand_coef - vFace + 0.5f)
+              * M_PI;
+            pitch = (y  - 0.25f - 0.5f * vFace) * ctx_.expand_coef * M_PI;
+            face = -1;
+          } else {
+            face = (vFace == 1) ? TOP : BOTTOM;
+            x = x * 3.0f - 2.0f;
+            y = y * 2.0f - vFace;
+          }
+          break;
+        }
       case LAYOUT_EAC_32:
         {
           vFace = (int) (y * 2);
@@ -1056,12 +1076,14 @@ bool VideoFrameTransform::transformPos(
       case LAYOUT_CUBEMAP_23_OFFCENTER:
       case LAYOUT_EQUIRECT:
       case LAYOUT_BARREL:
+      case LAYOUT_BARREL_SPLIT:
       case LAYOUT_EAC_32:
       case LAYOUT_TB_ONLY:
       case LAYOUT_TB_BARREL_ONLY:
       {
         if (ctx_.output_layout == LAYOUT_EQUIRECT ||
-            (ctx_.output_layout == LAYOUT_BARREL && face < 0)) {
+          (ctx_.output_layout == LAYOUT_BARREL && face < 0) ||
+          (ctx_.output_layout == LAYOUT_BARREL_SPLIT && face < 0)) {
           float sin_yaw = sin(yaw);
           float sin_pitch = sin(pitch);
           float cos_yaw = cos(yaw);
@@ -1074,6 +1096,7 @@ bool VideoFrameTransform::transformPos(
           assert(y >= 0 && y <= 1);
           assert(face >= 0 && face < 6);
           if (ctx_.output_layout == LAYOUT_BARREL ||
+            ctx_.output_layout == LAYOUT_BARREL_SPLIT ||
             ctx_.output_layout == LAYOUT_TB_BARREL_ONLY) {
             float radius = (x - 0.5f) * (x - 0.5f) + (y - 0.5f) * (y - 0.5f);
             if (radius > 0.25f * ctx_.expand_coef * ctx_.expand_coef) {
