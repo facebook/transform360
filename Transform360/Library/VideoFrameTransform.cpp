@@ -457,6 +457,7 @@ void VideoFrameTransform::calcualteFilteringConfig(
       }
     case LAYOUT_BARREL:
     case LAYOUT_BARREL_SPLIT:
+    case LAYOUT_BARREL_SPLIT_2:
     case LAYOUT_TB_BARREL_ONLY:
       {
         hFov = 450.0;
@@ -751,7 +752,9 @@ bool VideoFrameTransform::transformPlane(
   // For Barrel layout we want to have some black spots on the video frame,
   // so we need to change border mode to transparent, to avoid overwriting them.
   int borderMode =
-      (ctx_.output_layout == LAYOUT_BARREL || LAYOUT_BARREL_SPLIT) ?
+      (ctx_.output_layout == LAYOUT_BARREL ||
+       ctx_.output_layout == LAYOUT_BARREL_SPLIT ||
+       ctx_.output_layout == LAYOUT_BARREL_SPLIT_2) ?
       BORDER_TRANSPARENT :
       BORDER_WRAP;
   try {
@@ -782,7 +785,8 @@ bool VideoFrameTransform::transformPlane(
             // so we set it to 128.
             if (transformMatPlaneIndex &&
               (ctx_.output_layout == LAYOUT_BARREL ||
-              ctx_.output_layout == LAYOUT_BARREL_SPLIT)) {
+              ctx_.output_layout == LAYOUT_BARREL_SPLIT ||
+              ctx_.output_layout == LAYOUT_BARREL_SPLIT_2)) {
               outputMat.setTo(Scalar(128));
             }
             remap(
@@ -922,7 +926,8 @@ void VideoFrameTransform::transformInputPos(
 
       *outX = -atan2f (-tx / d, tz / d) / (M_PI * 2.0f) + 0.5f;
       if (ctx_.output_layout == LAYOUT_BARREL ||
-        ctx_.output_layout == LAYOUT_BARREL_SPLIT) {
+          ctx_.output_layout == LAYOUT_BARREL_SPLIT ||
+          ctx_.output_layout == LAYOUT_BARREL_SPLIT_2) {
         // Clamp pixels on the right, since we might have padding from ffmpeg.
         *outX = std::min(*outX, 1.0f - inputPixelWidth * 0.5f);
         *outX = std::max(*outX, inputPixelWidth * 0.5f);
@@ -1052,6 +1057,93 @@ bool VideoFrameTransform::transformPos(
           }
           break;
         }
+      case LAYOUT_BARREL_SPLIT_2:
+        //  For LAYOUT_BARREL_SPLIT_2, we separate the front view (-90~+90) and
+        //  back view (-180~-90 & +90~+180) of the sphere into top and bottom rows
+        //  of the projection. The top row holds the front half with its top and
+        //  bottom part in the top row, and the back half with its top and bottom
+        // part in the bottom row.
+        //
+        //  Illustration of Equirectangular:
+        //
+        //   +---+---+---+---+---+---+---+---+
+        //   |   1   |       3       |   1   |
+        //   +---+---+---+---+---+---+---+---+
+        //   |       |               |       |     Front half: 3, 4, 2
+        //   +   5   +       4       +   5   +
+        //   |       |               |       |     Back half: 1, 5, 0
+        //   +---+---+---+---+---+---+---+---+
+        //   |   0   |       2       |   0   |
+        //   +---+---+---+---+---+---+---+---+
+        //   <-Back-><---- Front ----><-Back->
+        //
+        //  Projection to LAYOUT_BARREL_SPLIT_2:
+        //
+        //   +---+---+---+---+---+---+
+        //   |               |\  3  /|     3: Front Top
+        //   +       4       +  - -  +
+        //   |               |/  2  \|     2: Front Bottom
+        //   +---+---+---+---+---+---+
+        //   |               |\  1  /|     1: Back Top
+        //   +       5       +  - -  +
+        //   |               |/  0  \|     0: Back Bottom
+        //   +---+---+---+---+---+---+
+        //
+        //  - Area 0, 1, 2, 3 are all half circles.
+        //
+        {
+          if (3.0f * x <= 2.0f) {
+            vFace = (int)(y * 2);
+            yaw =
+                ((3.0f / 2.0f * x - 0.5f) * ctx_.expand_coef - vFace + 1.0f) *
+                M_PI;
+            pitch = (y - 0.25f - 0.5f * vFace) * ctx_.expand_coef * M_PI;
+            face = -1;
+          } else {
+            //  Index which half circle the area is rendering from
+            //  - Area 0: Back Bottom.
+            //    * face: BOTTOM
+            //    * Needs to rotate 180 degrees to match shape.
+            //    * Rendering Range: [0, 0.5] -> [0.5, 0]
+            //  - Area 1: Back Top.
+            //    * face: TOP
+            //    * Needs to rotate 180 degrees to match shape.
+            //    * Rendering Range: [0.5, 1] -> [1, 0.5]
+            //  - Area 2: Front Bottom.
+            //    * face: BOTTOM
+            //    * Rendering Range: [0.5, 1]
+            //  - Area 3: Front Top.
+            //    * face: TOP
+            //    * Rendering Range: [0, 0.5]
+            //
+            int halfVFace = (int)(y * 4);
+            face = (halfVFace == 1 || halfVFace == 3) ? TOP : BOTTOM;
+            x = x * 3.0f - 2.0f;
+            switch (halfVFace) {
+              case 0:
+                y = y * 2.0f;
+                // Rotate 180 degrees
+                x = 1.0f - x;
+                y = (0.5f - y) * ctx_.expand_coef;
+                break;
+              case 1:
+                y = y * 2.0f;
+                // Rotate 180 degrees
+                x = 1.0f - x;
+                y = 1.0f - ctx_.expand_coef * (y - 0.5f);
+                break;
+              case 2:
+                y = y * 2.0f - 0.5f;
+                y = 1.0f - ctx_.expand_coef * (1.0f - y);
+                break;
+              case 3:
+                y = y * 2.0f - 1.5f;
+                y = y * ctx_.expand_coef;
+                break;
+            }
+          }
+          break;
+        }
       case LAYOUT_EAC_32:
         {
           vFace = (int) (y * 2);
@@ -1077,13 +1169,15 @@ bool VideoFrameTransform::transformPos(
       case LAYOUT_EQUIRECT:
       case LAYOUT_BARREL:
       case LAYOUT_BARREL_SPLIT:
+      case LAYOUT_BARREL_SPLIT_2:
       case LAYOUT_EAC_32:
       case LAYOUT_TB_ONLY:
       case LAYOUT_TB_BARREL_ONLY:
       {
         if (ctx_.output_layout == LAYOUT_EQUIRECT ||
           (ctx_.output_layout == LAYOUT_BARREL && face < 0) ||
-          (ctx_.output_layout == LAYOUT_BARREL_SPLIT && face < 0)) {
+          (ctx_.output_layout == LAYOUT_BARREL_SPLIT && face < 0) ||
+          (ctx_.output_layout == LAYOUT_BARREL_SPLIT_2 && face < 0)) {
           float sin_yaw = sin(yaw);
           float sin_pitch = sin(pitch);
           float cos_yaw = cos(yaw);
@@ -1097,6 +1191,7 @@ bool VideoFrameTransform::transformPos(
           assert(face >= 0 && face < 6);
           if (ctx_.output_layout == LAYOUT_BARREL ||
             ctx_.output_layout == LAYOUT_BARREL_SPLIT ||
+            ctx_.output_layout == LAYOUT_BARREL_SPLIT_2 ||
             ctx_.output_layout == LAYOUT_TB_BARREL_ONLY) {
             float radius = (x - 0.5f) * (x - 0.5f) + (y - 0.5f) * (y - 0.5f);
             if (radius > 0.25f * ctx_.expand_coef * ctx_.expand_coef) {
