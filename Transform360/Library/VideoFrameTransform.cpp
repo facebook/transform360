@@ -426,7 +426,6 @@ void VideoFrameTransform::calcualteFilteringConfig(
   float hFov, vFov;
   switch (ctx_.output_layout) {
     case LAYOUT_CUBEMAP_32:
-    case LAYOUT_TB_ONLY:
       {
         hFov = 270.0;
         vFov = 180.0;
@@ -457,7 +456,6 @@ void VideoFrameTransform::calcualteFilteringConfig(
       }
     case LAYOUT_BARREL:
     case LAYOUT_BARREL_SPLIT:
-    case LAYOUT_TB_BARREL_ONLY:
       {
         hFov = 450.0;
         vFov = 90.0;
@@ -1004,14 +1002,6 @@ bool VideoFrameTransform::transformPos(
           face = hFace + (2 - vFace) * 2;
           break;
         }
-      case LAYOUT_TB_ONLY:
-      case LAYOUT_TB_BARREL_ONLY:
-        {
-          vFace = (int) (y * 2);
-          face = (vFace == 1) ? TOP : BOTTOM;
-          y = y * 2.0f - vFace;
-          break;
-        }
 #ifdef FACEBOOK_LAYOUT
       case LAYOUT_FB:
         break;
@@ -1151,8 +1141,6 @@ bool VideoFrameTransform::transformPos(
       case LAYOUT_BARREL:
       case LAYOUT_BARREL_SPLIT:
       case LAYOUT_EAC_32:
-      case LAYOUT_TB_ONLY:
-      case LAYOUT_TB_BARREL_ONLY:
       {
         if (ctx_.output_layout == LAYOUT_EQUIRECT ||
           (ctx_.output_layout == LAYOUT_BARREL && face < 0) ||
@@ -1169,8 +1157,7 @@ bool VideoFrameTransform::transformPos(
           assert(y >= 0 && y <= 1);
           assert(face >= 0 && face < 6);
           if (ctx_.output_layout == LAYOUT_BARREL ||
-            ctx_.output_layout == LAYOUT_BARREL_SPLIT ||
-            ctx_.output_layout == LAYOUT_TB_BARREL_ONLY) {
+            ctx_.output_layout == LAYOUT_BARREL_SPLIT) {
             float radius = (x - 0.5f) * (x - 0.5f) + (y - 0.5f) * (y - 0.5f);
             if (radius > 0.25f * ctx_.expand_coef * ctx_.expand_coef) {
               hasMapping = false;
