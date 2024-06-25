@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-typedef struct VideoFrameTransform VideoFrameTransform;
+typedef class VideoFrameTransform VideoFrameTransform;
 
 extern VideoFrameTransform* VideoFrameTransform_new(
   FrameTransformContext* ctx);
