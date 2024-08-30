@@ -17,9 +17,7 @@
 #include <assert.h>
 #include <array>
 #include <cmath>
-#include <math.h>
 #include <memory>
-#include <set>
 #include <stdio.h>
 
 #ifdef FACEBOOK_LAYOUT
