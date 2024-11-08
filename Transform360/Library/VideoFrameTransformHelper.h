@@ -59,26 +59,26 @@ typedef struct FrameTransformContext {
   StereoFormat input_stereo_format;
   StereoFormat output_stereo_format;
   int vflip;
-  float input_expand_coef;  /// Expansion coefficient for the input
-  float expand_coef;  /// Expansion coefficient for the output
+  float input_expand_coef; /// Expansion coefficient for the input
+  float expand_coef; /// Expansion coefficient for the output
   InterpolationAlg interpolation_alg;
   float width_scale_factor; /// Width scale factor for antialiasing purpose
   float height_scale_factor; /// Height scale factor for antialiasing purpose
-  float fixed_yaw;    ///< Yaw (asimuth) angle, degrees
-  float fixed_pitch;  ///< Pitch (elevation) angle, degrees
-  float fixed_roll;   ///< Roll (tilt) angle, degrees
-  float fixed_hfov;   ///< Horizontal field of view, degrees
-  float fixed_vfov;   ///< Vertical field of view, degrees
+  float fixed_yaw; ///< Yaw (asimuth) angle, degrees
+  float fixed_pitch; ///< Pitch (elevation) angle, degrees
+  float fixed_roll; ///< Roll (tilt) angle, degrees
+  float fixed_hfov; ///< Horizontal field of view, degrees
+  float fixed_vfov; ///< Vertical field of view, degrees
   float fixed_cube_offcenter_x; /// offcenter projection x
   float fixed_cube_offcenter_y; /// offcenter projection y
   float fixed_cube_offcenter_z; /// offcenter projection z
-  int is_horizontal_offset;  /// Whether horizontal plane offset is enabled
+  int is_horizontal_offset; /// Whether horizontal plane offset is enabled
   int enable_low_pass_filter;
   float kernel_height_scale_factor; /// Factor to scale the calculated kernel
                                     /// height for low pass filtering
   float min_kernel_half_height; /// Half of the mininum kernel height which is
-                              /// usually applied to areas with small pitch
-                              /// values
+                                /// usually applied to areas with small pitch
+                                /// values
   float max_kernel_half_height; /// Maximum value of the kernel height
   int enable_multi_threading; /// Use multi-threading to filter segments
                               /// in parallel

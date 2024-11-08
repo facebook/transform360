@@ -22,13 +22,12 @@
 
 #include <opencv2/opencv.hpp>
 
-struct SegmentFilteringConfig
-{
+struct SegmentFilteringConfig {
   SegmentFilteringConfig(
-    int inputLeft,
-    int inputTop,
-    int inputWidth,
-    int inputHeight) {
+      int inputLeft,
+      int inputTop,
+      int inputWidth,
+      int inputHeight) {
     left = inputLeft;
     top = inputTop;
     width = inputWidth;
@@ -38,19 +37,18 @@ struct SegmentFilteringConfig
   int left, top, width, height;
 };
 
-class VideoFrameTransform
-{
-  public:
-    explicit VideoFrameTransform(FrameTransformContext* ctx);
+class VideoFrameTransform {
+ public:
+  explicit VideoFrameTransform(FrameTransformContext* ctx);
 
-    bool generateMapForPlane(
+  bool generateMapForPlane(
       int inputWidth,
       int inputHeight,
       int outputWidth,
       int outputHeight,
       int transformMatPlaneIndex);
 
-    bool transformPlane(
+  bool transformPlane(
       const cv::Mat& inputMat,
       cv::Mat& outputMat,
       int outputWidth,
@@ -58,8 +56,8 @@ class VideoFrameTransform
       int transformMatPlaneIndex,
       int imagePlaneIndex);
 
-    /// Transform API function for C
-    bool transformFramePlane(
+  /// Transform API function for C
+  bool transformFramePlane(
       uint8_t* inputData,
       uint8_t* outputData,
       int inputWidth,
@@ -71,18 +69,14 @@ class VideoFrameTransform
       int transformMatPlaneIndex,
       int imagePlaneIndex);
 
-  private:
-    // Transforms normalized 3D vector to 2d cubemap coordinates
-    void transformCubeFacePos(
-      float tx,
-      float ty,
-      float tz,
-      float *outX,
-      float *outY);
+ private:
+  // Transforms normalized 3D vector to 2d cubemap coordinates
+  void
+  transformCubeFacePos(float tx, float ty, float tz, float* outX, float* outY);
 
-    // Transforms 3D vector to the input 2d coordinates
-    // Only supports CUBEMAP_32 and EQUIRECT formats
-    void transformInputPos(
+  // Transforms 3D vector to the input 2d coordinates
+  // Only supports CUBEMAP_32 and EQUIRECT formats
+  void transformInputPos(
       float tx,
       float ty,
       float tz,
@@ -90,7 +84,7 @@ class VideoFrameTransform
       float* outX,
       float* outY);
 
-    bool transformPos(
+  bool transformPos(
       float x,
       float y,
       float* outX,
@@ -98,19 +92,19 @@ class VideoFrameTransform
       int transformMatPlaneIndex,
       float inputPixelWidth);
 
-    cv::Mat filterPlane(
+  cv::Mat filterPlane(
       const cv::Mat& inputMat,
       int transformMatPlaneIndex,
       int imagePlaneIndex);
 
-    void calcualteFilteringConfig(
+  void calcualteFilteringConfig(
       int inputWidth,
       int inputHeight,
       int outputWidth,
       int outputHeight,
       int transformMatPlaneIndex);
 
-    void filterSegment(
+  void filterSegment(
       const cv::Mat& inputMat,
       cv::Mat& outputMat,
       const cv::Mat& kernelX,
@@ -121,7 +115,7 @@ class VideoFrameTransform
       int height,
       int imagePlaneIndex);
 
-    void generateKernelsAndFilteringConfigs(
+  void generateKernelsAndFilteringConfigs(
       int startTop,
       int startBottom,
       float sigmaY,
@@ -131,7 +125,7 @@ class VideoFrameTransform
       int inputHeight,
       int transformMatPlaneIndex);
 
-    void generateKernelAndFilteringConfig(
+  void generateKernelAndFilteringConfig(
       int top,
       int bottom,
       float angle,
@@ -141,7 +135,7 @@ class VideoFrameTransform
       int inputHeight,
       int transformMatPlaneIndex);
 
-    void runFiltering(
+  void runFiltering(
       const cv::Mat& inputMat,
       cv::Mat& blurredPlane,
       int transformMatPlaneIndex,
@@ -150,19 +144,17 @@ class VideoFrameTransform
       int topOffset,
       std::vector<std::thread>& segmentFilteringThreads);
 
+  FrameTransformContext ctx_;
 
-    FrameTransformContext ctx_;
+  /// Map of <transformMatPlaneIndex, transform mat>
+  std::map<int, cv::Mat> warpMats_;
 
-    /// Map of <transformMatPlaneIndex, transform mat>
-    std::map<int, cv::Mat> warpMats_;
+  /// Map of <transformMatPlaneIndex, vector of 1D filter kernels
+  /// along X (horizontal) direction> for filtering frame plane
+  /// Same for Y (vertical) direction
+  std::map<int, std::vector<cv::Mat>> filterKernelsX_, filterKernelsY_;
 
-    /// Map of <transformMatPlaneIndex, vector of 1D filter kernels
-    /// along X (horizontal) direction> for filtering frame plane
-    /// Same for Y (vertical) direction
-    std::map<int, std::vector<cv::Mat>> filterKernelsX_,
-      filterKernelsY_;
-
-    /// Map of <transformMatPlaneIndex, vector of config parameters>
-    /// for filtering frame plane
-    std::map<int, std::vector<SegmentFilteringConfig>> segmentFilteringConfigs_;
+  /// Map of <transformMatPlaneIndex, vector of config parameters>
+  /// for filtering frame plane
+  std::map<int, std::vector<SegmentFilteringConfig>> segmentFilteringConfigs_;
 };
