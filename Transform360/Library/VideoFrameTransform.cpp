@@ -235,11 +235,11 @@ void VideoFrameTransform::generateKernelAndFilteringConfig(
   for (int i = 0; i < numHorizontalSegments && i * segmentWidth < inputWidth;
        ++i) {
     segmentFilteringConfigs_[transformMatPlaneIndex].emplace_back(
-        SegmentFilteringConfig(
-            i * segmentWidth,
-            top,
-            min(segmentWidth, inputWidth - i * segmentWidth),
-            bottom - top + 1));
+
+        i * segmentWidth,
+        top,
+        min(segmentWidth, inputWidth - i * segmentWidth),
+        bottom - top + 1);
 
     if (ctx_.adjust_kernel) {
       // Calculate the average yaw and pitch values of a tile, from which
