@@ -15,16 +15,9 @@
 
 #include <stdint.h>
 
-typedef enum TransformFaceType {
-  RIGHT = 0,
-  LEFT,
-  TOP,
-  BOTTOM,
-  FRONT,
-  BACK
-} TransformFaceType;
+enum TransformFaceType { RIGHT = 0, LEFT, TOP, BOTTOM, FRONT, BACK };
 
-typedef enum Layout {
+enum Layout {
   LAYOUT_CUBEMAP_32 = 0,
   LAYOUT_CUBEMAP_23_OFFCENTER,
 #ifdef FACEBOOK_LAYOUT
@@ -36,24 +29,19 @@ typedef enum Layout {
   LAYOUT_BARREL_SPLIT,
   LAYOUT_EAC_32,
   LAYOUT_N
-} Layout;
+};
 
-typedef enum StereoFormat {
+enum StereoFormat {
   STEREO_FORMAT_TB = 0,
   STEREO_FORMAT_LR,
   STEREO_FORMAT_MONO,
   STEREO_FORMAT_GUESS,
   STEREO_FORMAT_N
-} StereoFormat;
+};
 
-typedef enum InterpolationAlg {
-  NEAREST = 0,
-  LINEAR = 1,
-  CUBIC = 2,
-  LANCZOS4 = 4
-} InterpolationAlg;
+enum InterpolationAlg { NEAREST = 0, LINEAR = 1, CUBIC = 2, LANCZOS4 = 4 };
 
-typedef struct FrameTransformContext {
+struct FrameTransformContext {
   Layout input_layout;
   Layout output_layout;
   StereoFormat input_stereo_format;
@@ -87,4 +75,4 @@ typedef struct FrameTransformContext {
   int adjust_kernel; /// Adjust kernels bsed on the "distance" (in radians)
                      /// from the input point (yaw, pitch)
   float kernel_adjust_factor; /// Factor to further adjust the kernel size
-} FrameTransformContext;
+};
